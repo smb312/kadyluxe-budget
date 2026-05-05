@@ -2,15 +2,15 @@
 
 import { formatCurrency, formatCurrencyExact, type Totals } from "@/lib/calculations";
 import { DTC_GOAL } from "@/lib/constants";
-import type { ScenarioMeta } from "@/lib/types";
+import type { Scenario } from "@/lib/types";
 
 interface Props {
   totals: Totals;
-  meta: ScenarioMeta;
+  scenario: Scenario;
 }
 
-export default function KpiBar({ totals, meta }: Props) {
-  const targetBudget = (DTC_GOAL * meta.pct) / 100;
+export default function KpiBar({ totals, scenario }: Props) {
+  const targetBudget = (DTC_GOAL * scenario.pct) / 100;
   const variance = totals.total - targetBudget;
   const varianceColor =
     Math.abs(variance) > targetBudget * 0.05 ? "#B23A48" : "#2D5F3F";
@@ -20,7 +20,7 @@ export default function KpiBar({ totals, meta }: Props) {
     {
       label: "Target Budget",
       value: formatCurrency(targetBudget),
-      sub: `${meta.pct}% of $3M DTC goal`,
+      sub: `${scenario.pct}% of $3M DTC goal`,
     },
     {
       label: "Current Total",

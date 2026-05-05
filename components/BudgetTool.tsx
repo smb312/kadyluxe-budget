@@ -2,18 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Download } from "lucide-react";
-import {
-  DTC_GOAL,
-  SCENARIO_KEYS,
-  SCENARIO_META,
-} from "@/lib/constants";
+import { DTC_GOAL } from "@/lib/constants";
 import { calculateTotals } from "@/lib/calculations";
 import { useDebouncedCallback } from "@/lib/hooks";
 import type {
   Month,
   Partner,
+  Scenario,
   ScenarioBundle,
-  ScenarioKey,
+  ScenarioSlug,
   ShareLink,
 } from "@/lib/types";
 import ScenarioTabs from "./ScenarioTabs";
@@ -27,6 +24,7 @@ import ViewOnlyBanner from "./ViewOnlyBanner";
 import ShareLinkPanel from "./ShareLinkPanel";
 
 interface Props {
+  scenarios: Scenario[];
   initialBundle: ScenarioBundle;
   initialShareLinks: ShareLink[];
   userEmail: string | null;
@@ -38,7 +36,14 @@ type PartnerDraft = Pick<
   "name" | "category" | "cost" | "type" | "months" | "included" | "notes"
 >;
 
+const pickDefaultActive = (scenarios: Scenario[]): ScenarioSlug => {
+  // Prefer the 20% (Growth) scenario; otherwise the highest pct.
+  const sorted = [...scenarios].sort((a, b) => b.pct - a.pct);
+  return sorted[0]?.slug ?? "";
+};
+
 export default function BudgetTool({
+  scenarios,
   initialBundle,
   initialShareLinks,
   userEmail,
@@ -46,13 +51,14 @@ export default function BudgetTool({
 }: Props) {
   const readOnly = mode === "view";
   const [bundle, setBundle] = useState<ScenarioBundle>(initialBundle);
-  const [active, setActive] = useState<ScenarioKey>("option3");
+  const [active, setActive] = useState<ScenarioSlug>(() =>
+    pickDefaultActive(scenarios),
+  );
   const [showAdd, setShowAdd] = useState(false);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>(initialShareLinks);
 
   const inflight = useRef(0);
   const [saving, setSaving] = useState(false);
-
   const setSavingFlag = useCallback((delta: 1 | -1) => {
     inflight.current = Math.max(0, inflight.current + delta);
     setSaving(inflight.current > 0);
@@ -81,11 +87,21 @@ export default function BudgetTool({
     [readOnly, setSavingFlag],
   );
 
-  const current = bundle[active];
-  const meta = SCENARIO_META[active];
+  const scenarioBySlug = useMemo(() => {
+    const m = new Map<ScenarioSlug, Scenario>();
+    for (const s of scenarios) m.set(s.slug, s);
+    return m;
+  }, [scenarios]);
+
+  const currentScenario = scenarioBySlug.get(active);
+  const currentState = bundle[active];
+
   const totals = useMemo(
-    () => calculateTotals(current.partners, current.variable),
-    [current],
+    () =>
+      currentState
+        ? calculateTotals(currentState.partners, currentState.variable)
+        : { fixed: 0, variable: 0, total: 0 },
+    [currentState],
   );
 
   // ---- Partner mutations -------------------------------------------------
@@ -125,12 +141,14 @@ export default function BudgetTool({
   };
 
   const addPartner = async (draft: PartnerDraft) => {
+    if (!currentScenario) return;
     setShowAdd(false);
     const tempId = `temp-${Date.now()}`;
     const optimistic: Partner = {
       id: tempId,
-      scenario_key: active,
-      position: bundle[active].partners.length,
+      scenario_id: currentScenario.id,
+      scenario_slug: currentScenario.slug,
+      sort_order: bundle[active].partners.length,
       ...draft,
     };
     setBundle((prev) => ({
@@ -143,7 +161,7 @@ export default function BudgetTool({
 
     const res = await apiCall("/api/partners", {
       method: "POST",
-      body: JSON.stringify({ ...draft, scenario_key: active }),
+      body: JSON.stringify({ ...draft, scenario_id: currentScenario.id }),
     });
     if (!res || !res.ok) return;
     const created = (await res.json()) as Partner;
@@ -159,16 +177,17 @@ export default function BudgetTool({
   // ---- Monthly mutations -------------------------------------------------
 
   const debouncedMonthlySave = useDebouncedCallback(
-    (scenarioKey: ScenarioKey, month: Month, amount: number) => {
+    (scenarioId: string, month: Month, amount: number) => {
       void apiCall("/api/monthly", {
         method: "PATCH",
-        body: JSON.stringify({ scenario_key: scenarioKey, month, amount }),
+        body: JSON.stringify({ scenario_id: scenarioId, month, amount }),
       });
     },
     500,
   );
 
   const updateVariable = (month: Month, value: number) => {
+    if (!currentScenario) return;
     setBundle((prev) => ({
       ...prev,
       [active]: {
@@ -176,7 +195,7 @@ export default function BudgetTool({
         variable: { ...prev[active].variable, [month]: value },
       },
     }));
-    debouncedMonthlySave(active, month, value);
+    debouncedMonthlySave(currentScenario.id, month, value);
   };
 
   // ---- Share links -------------------------------------------------------
@@ -191,7 +210,7 @@ export default function BudgetTool({
   const revokeShareLink = async (token: string) => {
     setShareLinks((prev) =>
       prev.map((l) =>
-        l.token === token ? { ...l, revoked_at: new Date().toISOString() } : l,
+        l.token === token ? { ...l, expires_at: new Date().toISOString() } : l,
       ),
     );
     await apiCall("/api/share", {
@@ -206,15 +225,16 @@ export default function BudgetTool({
     const data = {
       generated: new Date().toISOString(),
       dtc_goal: DTC_GOAL,
-      scenarios: SCENARIO_KEYS.reduce<Record<string, unknown>>((acc, key) => {
-        const s = bundle[key];
-        const t = calculateTotals(s.partners, s.variable);
-        acc[key] = {
-          name: SCENARIO_META[key].name,
-          pct_of_dtc: SCENARIO_META[key].pct,
-          target_budget: (DTC_GOAL * SCENARIO_META[key].pct) / 100,
-          partners: s.partners,
-          monthly_variable: s.variable,
+      scenarios: scenarios.reduce<Record<string, unknown>>((acc, s) => {
+        const state = bundle[s.slug];
+        if (!state) return acc;
+        const t = calculateTotals(state.partners, state.variable);
+        acc[s.slug] = {
+          name: s.name,
+          pct_of_dtc: s.pct,
+          target_budget: (DTC_GOAL * s.pct) / 100,
+          partners: state.partners,
+          monthly_variable: state.variable,
           totals: t,
         };
         return acc;
@@ -246,9 +266,13 @@ export default function BudgetTool({
 
   // ---- Render ------------------------------------------------------------
 
-  const targetBudget = (DTC_GOAL * meta.pct) / 100;
-  const variance = totals.total - targetBudget;
-  void variance;
+  if (!currentScenario || !currentState) {
+    return (
+      <div className="min-h-screen grid place-items-center text-sm text-black/60">
+        No scenarios found in the database.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-cream text-ink">
@@ -261,9 +285,11 @@ export default function BudgetTool({
               <div className="mono-font text-[11px] tracking-[0.15em] uppercase text-black/50 mb-2">
                 KADYLUXE × COAST / FRACTIONAL CMO
               </div>
-              <h1 className="display-font font-medium leading-none tracking-tight m-0" style={{ fontSize: 44 }}>
-                2026 Marketing{" "}
-                <em className="italic font-normal">North Star</em>
+              <h1
+                className="display-font font-medium leading-none tracking-tight m-0"
+                style={{ fontSize: 44 }}
+              >
+                2026 Marketing <em className="italic font-normal">North Star</em>
               </h1>
               <div className="mt-3 text-sm text-black/60 leading-relaxed max-w-2xl">
                 Three budget scenarios against a $3M DTC goal. Edit partners,
@@ -282,25 +308,31 @@ export default function BudgetTool({
       </div>
 
       <div className="max-w-[1400px] mx-auto p-8">
-        <ScenarioTabs bundle={bundle} active={active} onSelect={setActive} />
+        <ScenarioTabs
+          scenarios={scenarios}
+          bundle={bundle}
+          active={active}
+          onSelect={setActive}
+        />
 
-        <KpiBar totals={totals} meta={meta} />
+        <KpiBar totals={totals} scenario={currentScenario} />
 
         <div
           className="bg-white px-5 py-3.5 mb-8 flex gap-3 items-start"
-          style={{ borderLeft: `3px solid ${meta.color}` }}
+          style={{ borderLeft: `3px solid ${currentScenario.color}` }}
         >
           <AlertCircle
             size={18}
-            style={{ color: meta.color, flexShrink: 0, marginTop: 1 }}
+            style={{ color: currentScenario.color, flexShrink: 0, marginTop: 1 }}
           />
           <div className="text-sm leading-relaxed text-black/75">
-            <strong className="text-ink">{meta.name}.</strong> {meta.note}
+            <strong className="text-ink">{currentScenario.name}.</strong>{" "}
+            {currentScenario.note}
           </div>
         </div>
 
         <PartnersTable
-          partners={current.partners}
+          partners={currentState.partners}
           fixedTotal={totals.fixed}
           readOnly={readOnly}
           onUpdate={updatePartner}
@@ -309,21 +341,22 @@ export default function BudgetTool({
         />
 
         {showAdd && !readOnly && (
-          <AddPartnerModal
-            onAdd={addPartner}
-            onCancel={() => setShowAdd(false)}
-          />
+          <AddPartnerModal onAdd={addPartner} onCancel={() => setShowAdd(false)} />
         )}
 
         <MonthlyVariable
-          variable={current.variable}
+          variable={currentState.variable}
           total={totals.variable}
-          meta={meta}
+          scenario={currentScenario}
           readOnly={readOnly}
           onChange={updateVariable}
         />
 
-        <ComparisonTable bundle={bundle} active={active} />
+        <ComparisonTable
+          scenarios={scenarios}
+          bundle={bundle}
+          active={active}
+        />
 
         {!readOnly && (
           <ShareLinkPanel

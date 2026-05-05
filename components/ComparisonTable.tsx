@@ -1,43 +1,51 @@
 "use client";
 
-import { SCENARIO_KEYS, SCENARIO_META } from "@/lib/constants";
 import { calculateTotals, formatCurrency } from "@/lib/calculations";
-import type { ScenarioBundle, ScenarioKey } from "@/lib/types";
+import type { Scenario, ScenarioBundle, ScenarioSlug } from "@/lib/types";
 
 interface Props {
+  scenarios: Scenario[];
   bundle: ScenarioBundle;
-  active: ScenarioKey;
+  active: ScenarioSlug;
 }
 
-export default function ComparisonTable({ bundle, active }: Props) {
-  const labelFor = (k: ScenarioKey) => {
-    const pct = SCENARIO_META[k].pct;
-    return pct === 20 ? "Growth" : pct === 15 ? "Foundation" : "Maintenance";
+export default function ComparisonTable({ scenarios, bundle, active }: Props) {
+  const labelFor = (s: Scenario) => {
+    const tag = s.name.split("—")[1]?.trim();
+    return tag || s.name;
   };
 
-  const rows: { label: string; getValue: (k: ScenarioKey) => string }[] = [
+  const cols = `2fr ${scenarios.map(() => "1fr").join(" ")}`;
+
+  const rows: { label: string; getValue: (s: Scenario) => string }[] = [
     {
       label: "Total Budget",
-      getValue: (k) =>
-        formatCurrency(calculateTotals(bundle[k].partners, bundle[k].variable).total),
+      getValue: (s) =>
+        formatCurrency(
+          calculateTotals(bundle[s.slug]?.partners ?? [], bundle[s.slug]?.variable ?? {} as Record<string, number>).total,
+        ),
     },
     {
       label: "Fixed Costs",
-      getValue: (k) =>
-        formatCurrency(calculateTotals(bundle[k].partners, bundle[k].variable).fixed),
+      getValue: (s) =>
+        formatCurrency(
+          calculateTotals(bundle[s.slug]?.partners ?? [], bundle[s.slug]?.variable ?? {} as Record<string, number>).fixed,
+        ),
     },
     {
       label: "Variable Working Spend",
-      getValue: (k) =>
-        formatCurrency(calculateTotals(bundle[k].partners, bundle[k].variable).variable),
+      getValue: (s) =>
+        formatCurrency(
+          calculateTotals(bundle[s.slug]?.partners ?? [], bundle[s.slug]?.variable ?? {} as Record<string, number>).variable,
+        ),
     },
     {
       label: "Active Partners",
-      getValue: (k) =>
-        bundle[k].partners.filter((p) => p.included).length.toString(),
+      getValue: (s) =>
+        (bundle[s.slug]?.partners.filter((p) => p.included).length ?? 0).toString(),
     },
-    { label: "Realistic DTC", getValue: (k) => SCENARIO_META[k].realisticDtc },
-    { label: "Hits $3M Goal?", getValue: (k) => SCENARIO_META[k].hitsGoal },
+    { label: "Realistic DTC", getValue: (s) => s.realistic_dtc },
+    { label: "Hits $3M Goal?", getValue: (s) => s.hits_goal },
   ];
 
   return (
@@ -48,19 +56,19 @@ export default function ComparisonTable({ bundle, active }: Props) {
       <div className="bg-white border border-black/10 rounded overflow-hidden">
         <div
           className="grid px-5 py-3.5 bg-black/[0.03] border-b border-black/10"
-          style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr" }}
+          style={{ gridTemplateColumns: cols }}
         >
           <div className="label-mono">Metric</div>
-          {SCENARIO_KEYS.map((k) => (
+          {scenarios.map((s) => (
             <div
-              key={k}
+              key={s.slug}
               className="label-mono"
               style={{
-                color: active === k ? "#1A1A1A" : undefined,
-                fontWeight: active === k ? 700 : 500,
+                color: active === s.slug ? "#1A1A1A" : undefined,
+                fontWeight: active === s.slug ? 700 : 500,
               }}
             >
-              {SCENARIO_META[k].pct}% — {labelFor(k)}
+              {s.pct}% — {labelFor(s)}
             </div>
           ))}
         </div>
@@ -69,22 +77,22 @@ export default function ComparisonTable({ bundle, active }: Props) {
             key={i}
             className="grid px-5 py-3 items-center"
             style={{
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
+              gridTemplateColumns: cols,
               borderBottom:
                 i < rows.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
             }}
           >
             <div className="text-[13px] text-black/70">{row.label}</div>
-            {SCENARIO_KEYS.map((k) => (
+            {scenarios.map((s) => (
               <div
-                key={k}
+                key={s.slug}
                 className="mono-font text-sm"
                 style={{
-                  fontWeight: active === k ? 700 : 500,
-                  color: active === k ? "#1A1A1A" : "rgba(0,0,0,0.7)",
+                  fontWeight: active === s.slug ? 700 : 500,
+                  color: active === s.slug ? "#1A1A1A" : "rgba(0,0,0,0.7)",
                 }}
               >
-                {row.getValue(k)}
+                {row.getValue(s)}
               </div>
             ))}
           </div>

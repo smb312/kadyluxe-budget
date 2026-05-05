@@ -10,7 +10,7 @@ const ALLOWED_FIELDS = [
   "months",
   "included",
   "notes",
-  "position",
+  "sort_order",
 ] as const;
 
 export async function PATCH(
@@ -39,7 +39,6 @@ export async function PATCH(
     .from("partners")
     .select("*")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .maybeSingle();
 
   if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -48,19 +47,16 @@ export async function PATCH(
     .from("partners")
     .update(patch)
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .select("*")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await recordChange({
-    userId: user.id,
-    table: "partners",
-    recordId: params.id,
-    action: "update",
-    before,
-    after,
+    scenarioId: String(before.scenario_id),
+    userEmail: user.email ?? null,
+    action: "partner.update",
+    details: { id: params.id, before, after, patch },
   });
 
   return NextResponse.json({ ok: true });
@@ -81,7 +77,6 @@ export async function DELETE(
     .from("partners")
     .select("*")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .maybeSingle();
 
   if (!before) return NextResponse.json({ ok: true });
@@ -89,17 +84,15 @@ export async function DELETE(
   const { error } = await admin
     .from("partners")
     .delete()
-    .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("id", params.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await recordChange({
-    userId: user.id,
-    table: "partners",
-    recordId: params.id,
-    action: "delete",
-    before,
+    scenarioId: String(before.scenario_id),
+    userEmail: user.email ?? null,
+    action: "partner.delete",
+    details: { id: params.id, before },
   });
 
   return NextResponse.json({ ok: true });

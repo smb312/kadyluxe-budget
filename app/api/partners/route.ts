@@ -3,8 +3,6 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { recordChange } from "@/lib/changeLog";
 import type { Partner } from "@/lib/types";
 
-const SCENARIO_KEYS = new Set(["option1", "option2", "option3"]);
-
 export async function POST(request: NextRequest) {
   const supabase = createClient();
   const {
@@ -13,20 +11,30 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  if (!SCENARIO_KEYS.has(body.scenario_key)) {
-    return NextResponse.json({ error: "invalid scenario_key" }, { status: 400 });
+  const scenarioId = String(body.scenario_id ?? "");
+  if (!scenarioId) {
+    return NextResponse.json({ error: "missing scenario_id" }, { status: 400 });
   }
 
   const admin = createServiceClient();
+
+  // Verify the scenario exists and grab the slug for the response.
+  const { data: scenario } = await admin
+    .from("scenarios")
+    .select("id, slug")
+    .eq("id", scenarioId)
+    .maybeSingle();
+  if (!scenario) {
+    return NextResponse.json({ error: "scenario not found" }, { status: 404 });
+  }
+
   const { count } = await admin
     .from("partners")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("scenario_key", body.scenario_key);
+    .eq("scenario_id", scenarioId);
 
   const insertRow = {
-    user_id: user.id,
-    scenario_key: body.scenario_key,
+    scenario_id: scenarioId,
     name: String(body.name ?? ""),
     category: String(body.category ?? ""),
     cost: Number(body.cost ?? 0),
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
     months: body.type === "annual" ? null : Number(body.months ?? 12),
     included: body.included !== false,
     notes: body.notes ?? null,
-    position: count ?? 0,
+    sort_order: count ?? 0,
   };
 
   const { data, error } = await admin
@@ -52,7 +60,8 @@ export async function POST(request: NextRequest) {
 
   const partner: Partner = {
     id: String(data.id),
-    scenario_key: data.scenario_key,
+    scenario_id: String(data.scenario_id),
+    scenario_slug: String(scenario.slug),
     name: data.name,
     category: data.category,
     cost: Number(data.cost),
@@ -60,15 +69,14 @@ export async function POST(request: NextRequest) {
     months: data.months,
     included: Boolean(data.included),
     notes: data.notes,
-    position: Number(data.position),
+    sort_order: Number(data.sort_order ?? 0),
   };
 
   await recordChange({
-    userId: user.id,
-    table: "partners",
-    recordId: partner.id,
-    action: "create",
-    after: partner,
+    scenarioId,
+    userEmail: user.email ?? null,
+    action: "partner.create",
+    details: { partner },
   });
 
   return NextResponse.json(partner);

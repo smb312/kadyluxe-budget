@@ -1,22 +1,20 @@
 import { createServiceClient } from "@/lib/supabase/server";
 
-export type ChangeAction = "create" | "update" | "delete";
-
 export const recordChange = async (params: {
-  userId: string;
-  table: string;
-  recordId: string;
-  action: ChangeAction;
-  before?: unknown;
-  after?: unknown;
+  scenarioId: string | null;
+  userEmail: string | null;
+  action: string;
+  details: Record<string, unknown>;
 }) => {
+  // change_log requires scenario_id; skip if we don't have one (e.g. share-link mutations).
+  if (!params.scenarioId) return;
+
   const admin = createServiceClient();
-  await admin.from("change_log").insert({
-    user_id: params.userId,
-    table_name: params.table,
-    record_id: params.recordId,
+  const { error } = await admin.from("change_log").insert({
+    scenario_id: params.scenarioId,
+    user_email: params.userEmail,
     action: params.action,
-    before: params.before ?? null,
-    after: params.after ?? null,
+    details: params.details,
   });
+  if (error) console.error("change_log insert error", error);
 };

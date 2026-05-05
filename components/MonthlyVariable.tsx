@@ -7,12 +7,12 @@ import {
   PEAK_MONTHS,
 } from "@/lib/constants";
 import { formatCurrency, sumMonths } from "@/lib/calculations";
-import type { Month, ScenarioMeta } from "@/lib/types";
+import type { Month, Scenario } from "@/lib/types";
 
 interface Props {
   variable: Record<Month, number>;
   total: number;
-  meta: ScenarioMeta;
+  scenario: Scenario;
   readOnly: boolean;
   onChange: (month: Month, value: number) => void;
 }
@@ -20,7 +20,7 @@ interface Props {
 export default function MonthlyVariable({
   variable,
   total,
-  meta,
+  scenario,
   readOnly,
   onChange,
 }: Props) {
@@ -48,10 +48,7 @@ export default function MonthlyVariable({
             const heightPct = max > 0 ? (v / max) * 100 : 0;
             const isPeak = PEAK_MONTHS.includes(m);
             return (
-              <div
-                key={m}
-                className="flex flex-col items-center justify-end h-full"
-              >
+              <div key={m} className="flex flex-col items-center justify-end h-full">
                 <div className="mono-font text-[10px] text-black/50 mb-1">
                   {formatCurrency(v)}
                 </div>
@@ -59,7 +56,7 @@ export default function MonthlyVariable({
                   className="month-bar w-full"
                   style={{
                     height: `${heightPct}%`,
-                    background: isPeak ? meta.color : "rgba(0,0,0,0.25)",
+                    background: isPeak ? scenario.color : "rgba(0,0,0,0.25)",
                     borderRadius: "2px 2px 0 0",
                     minHeight: v > 0 ? 4 : 0,
                   }}
@@ -81,7 +78,7 @@ export default function MonthlyVariable({
                   className="mono-font font-semibold tracking-wider"
                   style={{
                     fontSize: 11,
-                    color: isPeak ? meta.color : "#1A1A1A",
+                    color: isPeak ? scenario.color : "#1A1A1A",
                   }}
                 >
                   {m.toUpperCase()}
@@ -108,9 +105,7 @@ export default function MonthlyVariable({
           </div>
           <div>
             <span className="mono-font tracking-wider">PEAK AUG-JAN: </span>
-            <strong style={{ color: meta.color }}>
-              {formatCurrency(peakSum)}
-            </strong>
+            <strong style={{ color: scenario.color }}>{formatCurrency(peakSum)}</strong>
           </div>
           <div>
             <span className="mono-font tracking-wider">MAINT FEB-APR: </span>

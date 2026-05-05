@@ -1,122 +1,129 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import {
-  DEFAULT_PARTNERS,
-  DEFAULT_VARIABLE,
+  DEFAULT_PARTNERS_BY_PCT,
+  DEFAULT_VARIABLE_BY_PCT,
   MONTHS,
-  SCENARIO_KEYS,
-  SCENARIO_META,
 } from "@/lib/constants";
 import type {
   Month,
   Partner,
+  Scenario,
   ScenarioBundle,
-  ScenarioKey,
+  ScenarioState,
 } from "@/lib/types";
 
-const isScenarioKey = (k: string): k is ScenarioKey =>
-  k === "option1" || k === "option2" || k === "option3";
-
 const emptyVariable = (): Record<Month, number> =>
-  MONTHS.reduce(
-    (acc, m) => {
-      acc[m] = 0;
-      return acc;
-    },
-    {} as Record<Month, number>,
-  );
+  MONTHS.reduce((acc, m) => {
+    acc[m] = 0;
+    return acc;
+  }, {} as Record<Month, number>);
 
-export interface UserBudget {
-  bundle: ScenarioBundle;
-}
-
-export const ensureUserSeed = async (userId: string): Promise<void> => {
+export const fetchScenarios = async (): Promise<Scenario[]> => {
   const admin = createServiceClient();
-
-  const { data: existing } = await admin
+  const { data, error } = await admin
     .from("scenarios")
-    .select("key")
-    .eq("user_id", userId);
+    .select("id, slug, name, pct, realistic_dtc, hits_goal, note, color, sort_order")
+    .order("sort_order", { ascending: true });
 
-  const have = new Set((existing ?? []).map((r) => r.key as string));
-  const missing = SCENARIO_KEYS.filter((k) => !have.has(k));
-  if (missing.length === 0) return;
-
-  const scenarioRows = missing.map((key) => ({
-    user_id: userId,
-    key,
-    name: SCENARIO_META[key].name,
-    pct: SCENARIO_META[key].pct,
+  if (error) {
+    console.error("fetchScenarios error", error);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    slug: String(r.slug),
+    name: String(r.name),
+    pct: Number(r.pct),
+    realistic_dtc: String(r.realistic_dtc ?? ""),
+    hits_goal: String(r.hits_goal ?? ""),
+    note: String(r.note ?? ""),
+    color: String(r.color ?? "#1A1A1A"),
+    sort_order: Number(r.sort_order ?? 0),
   }));
+};
 
-  await admin.from("scenarios").insert(scenarioRows);
+const seedScenarioIfEmpty = async (scenario: Scenario): Promise<void> => {
+  const admin = createServiceClient();
+  const pct = Math.round(scenario.pct);
 
-  const partnerRows = missing.flatMap((key) =>
-    DEFAULT_PARTNERS[key].map((p, idx) => ({
-      user_id: userId,
-      scenario_key: key,
-      name: p.name,
-      category: p.category,
-      cost: p.cost,
-      type: p.type,
-      months: p.months,
-      included: p.included,
-      notes: p.notes,
-      position: idx,
-    })),
-  );
-  if (partnerRows.length > 0) {
-    await admin.from("partners").insert(partnerRows);
+  const [{ count: partnerCount }, { count: monthlyCount }] = await Promise.all([
+    admin
+      .from("partners")
+      .select("id", { count: "exact", head: true })
+      .eq("scenario_id", scenario.id),
+    admin
+      .from("monthly_variable")
+      .select("scenario_id", { count: "exact", head: true })
+      .eq("scenario_id", scenario.id),
+  ]);
+
+  if ((partnerCount ?? 0) === 0) {
+    const seed = DEFAULT_PARTNERS_BY_PCT[pct];
+    if (seed) {
+      const rows = seed.map((p, idx) => ({
+        scenario_id: scenario.id,
+        name: p.name,
+        category: p.category,
+        cost: p.cost,
+        type: p.type,
+        months: p.months,
+        included: p.included,
+        notes: p.notes,
+        sort_order: idx,
+      }));
+      const { error } = await admin.from("partners").insert(rows);
+      if (error) console.error("seed partners error", error);
+    }
   }
 
-  const monthlyRows = missing.flatMap((key) =>
-    MONTHS.map((m) => ({
-      user_id: userId,
-      scenario_key: key,
-      month: m,
-      amount: DEFAULT_VARIABLE[key][m],
-    })),
-  );
-  if (monthlyRows.length > 0) {
-    await admin.from("monthly_variable").insert(monthlyRows);
+  if ((monthlyCount ?? 0) === 0) {
+    const seed = DEFAULT_VARIABLE_BY_PCT[pct];
+    if (seed) {
+      const rows = MONTHS.map((m) => ({
+        scenario_id: scenario.id,
+        month: m,
+        amount: seed[m] ?? 0,
+      }));
+      const { error } = await admin.from("monthly_variable").insert(rows);
+      if (error) console.error("seed monthly error", error);
+    }
   }
 };
 
-export const fetchUserBundle = async (userId: string): Promise<ScenarioBundle> => {
-  const admin = createServiceClient();
+export const ensureSeed = async (scenarios: Scenario[]): Promise<void> => {
+  await Promise.all(scenarios.map(seedScenarioIfEmpty));
+};
 
-  const [{ data: partners }, { data: monthly }] = await Promise.all([
+export const fetchBundle = async (
+  scenarios: Scenario[],
+): Promise<ScenarioBundle> => {
+  const admin = createServiceClient();
+  const ids = scenarios.map((s) => s.id);
+  if (ids.length === 0) return {};
+
+  const [{ data: partnerRows }, { data: monthlyRows }] = await Promise.all([
     admin
       .from("partners")
       .select("*")
-      .eq("user_id", userId)
-      .order("position", { ascending: true }),
-    admin.from("monthly_variable").select("*").eq("user_id", userId),
+      .in("scenario_id", ids)
+      .order("sort_order", { ascending: true }),
+    admin.from("monthly_variable").select("*").in("scenario_id", ids),
   ]);
 
-  return assembleBundle(partners ?? [], monthly ?? []);
-};
+  const idToSlug = new Map(scenarios.map((s) => [s.id, s.slug]));
 
-export const fetchBundleForUser = async (userId: string): Promise<ScenarioBundle> => {
-  await ensureUserSeed(userId);
-  return fetchUserBundle(userId);
-};
+  const bundle: ScenarioBundle = {};
+  for (const s of scenarios) {
+    bundle[s.slug] = { partners: [], variable: emptyVariable() };
+  }
 
-const assembleBundle = (
-  partnerRows: Array<Record<string, unknown>>,
-  monthlyRows: Array<Record<string, unknown>>,
-): ScenarioBundle => {
-  const bundle: ScenarioBundle = {
-    option1: { partners: [], variable: emptyVariable() },
-    option2: { partners: [], variable: emptyVariable() },
-    option3: { partners: [], variable: emptyVariable() },
-  };
-
-  for (const row of partnerRows) {
-    const key = row.scenario_key as string;
-    if (!isScenarioKey(key)) continue;
+  for (const row of partnerRows ?? []) {
+    const slug = idToSlug.get(String(row.scenario_id));
+    if (!slug) continue;
     const partner: Partner = {
       id: String(row.id),
-      scenario_key: key,
+      scenario_id: String(row.scenario_id),
+      scenario_slug: slug,
       name: String(row.name ?? ""),
       category: String(row.category ?? ""),
       cost: Number(row.cost ?? 0),
@@ -124,37 +131,52 @@ const assembleBundle = (
       months: row.months == null ? null : Number(row.months),
       included: Boolean(row.included),
       notes: row.notes == null ? null : String(row.notes),
-      position: Number(row.position ?? 0),
+      sort_order: Number(row.sort_order ?? 0),
     };
-    bundle[key].partners.push(partner);
+    bundle[slug].partners.push(partner);
   }
 
-  for (const row of monthlyRows) {
-    const key = row.scenario_key as string;
-    if (!isScenarioKey(key)) continue;
+  for (const row of monthlyRows ?? []) {
+    const slug = idToSlug.get(String(row.scenario_id));
+    if (!slug) continue;
     const m = row.month as Month;
     if (!MONTHS.includes(m)) continue;
-    bundle[key].variable[m] = Number(row.amount ?? 0);
+    bundle[slug].variable[m] = Number(row.amount ?? 0);
   }
 
   return bundle;
 };
 
-export const fetchBundleForShareToken = async (
+export interface BudgetData {
+  scenarios: Scenario[];
+  bundle: ScenarioBundle;
+}
+
+export const loadBudget = async (): Promise<BudgetData> => {
+  const scenarios = await fetchScenarios();
+  await ensureSeed(scenarios);
+  const bundle = await fetchBundle(scenarios);
+  return { scenarios, bundle };
+};
+
+export const loadBudgetForShareToken = async (
   token: string,
-): Promise<{ bundle: ScenarioBundle; ownerEmail: string | null } | null> => {
+): Promise<{ data: BudgetData; ownerEmail: string | null } | null> => {
   const admin = createServiceClient();
   const { data: link } = await admin
     .from("share_links")
-    .select("user_id, revoked_at")
+    .select("created_by, expires_at")
     .eq("token", token)
     .maybeSingle();
 
-  if (!link || link.revoked_at) return null;
-  const userId = link.user_id as string;
+  if (!link) return null;
+  if (link.expires_at && new Date(link.expires_at) <= new Date()) return null;
 
-  const bundle = await fetchUserBundle(userId);
-
-  const { data: user } = await admin.auth.admin.getUserById(userId);
-  return { bundle, ownerEmail: user?.user?.email ?? null };
+  const data = await loadBudget();
+  let ownerEmail: string | null = null;
+  if (link.created_by) {
+    const { data: u } = await admin.auth.admin.getUserById(String(link.created_by));
+    ownerEmail = u?.user?.email ?? null;
+  }
+  return { data, ownerEmail };
 };

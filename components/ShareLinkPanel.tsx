@@ -10,11 +10,16 @@ interface Props {
   onRevoke: (token: string) => Promise<void>;
 }
 
+const isActive = (l: ShareLink): boolean => {
+  if (!l.expires_at) return true;
+  return new Date(l.expires_at) > new Date();
+};
+
 export default function ShareLinkPanel({ links, onCreate, onRevoke }: Props) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const active = links.filter((l) => !l.revoked_at);
+  const active = links.filter(isActive);
 
   const buildUrl = (token: string) => {
     if (typeof window === "undefined") return `/view/${token}`;
@@ -75,11 +80,7 @@ export default function ShareLinkPanel({ links, onCreate, onRevoke }: Props) {
               <span className="mono-font text-[10px] text-black/40 tracking-wider">
                 {new Date(l.created_at).toLocaleDateString()}
               </span>
-              <button
-                onClick={() => copy(l.token)}
-                className="btn-secondary"
-                title="Copy URL"
-              >
+              <button onClick={() => copy(l.token)} className="btn-secondary" title="Copy URL">
                 <Copy size={13} />
                 {copied === l.token ? "Copied" : "Copy"}
               </button>
