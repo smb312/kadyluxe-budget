@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { fetchBundleForShareToken } from "@/lib/data";
+import { loadBudgetForShareToken } from "@/lib/data";
 import BudgetTool from "@/components/BudgetTool";
 
 export const dynamic = "force-dynamic";
@@ -9,14 +9,15 @@ export default async function ViewPage({
 }: {
   params: { token: string };
 }) {
-  const data = await fetchBundleForShareToken(params.token);
-  if (!data) notFound();
+  const result = await loadBudgetForShareToken(params.token);
+  if (!result) notFound();
 
   return (
     <BudgetTool
-      initialBundle={data.bundle}
+      scenarios={result.data.scenarios}
+      initialBundle={result.data.bundle}
       initialShareLinks={[]}
-      userEmail={data.ownerEmail}
+      userEmail={result.ownerEmail}
       mode="view"
     />
   );

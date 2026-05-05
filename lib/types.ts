@@ -1,4 +1,4 @@
-export type ScenarioKey = "option1" | "option2" | "option3";
+export type ScenarioSlug = string;
 
 export type PartnerType = "annual" | "monthly";
 
@@ -6,9 +6,22 @@ export type Month =
   | "May" | "Jun" | "Jul" | "Aug" | "Sep" | "Oct"
   | "Nov" | "Dec" | "Jan" | "Feb" | "Mar" | "Apr";
 
+export interface Scenario {
+  id: string;
+  slug: ScenarioSlug;
+  name: string;
+  pct: number;
+  realistic_dtc: string;
+  hits_goal: string;
+  note: string;
+  color: string;
+  sort_order: number;
+}
+
 export interface Partner {
   id: string;
-  scenario_key: ScenarioKey;
+  scenario_id: string;
+  scenario_slug: ScenarioSlug;
   name: string;
   category: string;
   cost: number;
@@ -16,29 +29,21 @@ export interface Partner {
   months: number | null;
   included: boolean;
   notes: string | null;
-  position: number;
+  sort_order: number;
 }
 
 export interface MonthlyVariableRow {
-  scenario_key: ScenarioKey;
+  scenario_id: string;
+  scenario_slug: ScenarioSlug;
   month: Month;
   amount: number;
-}
-
-export interface ScenarioMeta {
-  key: ScenarioKey;
-  name: string;
-  pct: number;
-  realisticDtc: string;
-  hitsGoal: string;
-  note: string;
-  color: string;
 }
 
 export interface ShareLink {
   token: string;
   created_at: string;
-  revoked_at: string | null;
+  expires_at: string | null;
+  label: string | null;
 }
 
 export interface ScenarioState {
@@ -46,4 +51,4 @@ export interface ScenarioState {
   variable: Record<Month, number>;
 }
 
-export type ScenarioBundle = Record<ScenarioKey, ScenarioState>;
+export type ScenarioBundle = Record<ScenarioSlug, ScenarioState>;
