@@ -8,11 +8,13 @@ partners and monthly variable spend, persisted to Supabase Postgres.
 
 - Next.js 14 (App Router) + TypeScript
 - Tailwind CSS
-- Supabase (Postgres + magic-link auth) via `@supabase/ssr`
+- Supabase (Postgres + email/password auth) via `@supabase/ssr`
 
 ## Features
 
-- Magic-link email authentication.
+- Email + password authentication (`signInWithPassword` / `signUp`). The login
+  page has a sign-up toggle; new accounts are signed in immediately, with no
+  email confirmation step.
 - Three scenarios with full partner CRUD, monthly variable spend, and a
   side-by-side comparison table.
 - Auto-save with 500ms debounce. Optimistic UI updates.
@@ -30,10 +32,17 @@ Copy `.env.local.example` to `.env.local` and fill in:
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser + server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only — used by API routes for writes and seeding |
-| `NEXT_PUBLIC_SITE_URL` | Used to build the magic-link `redirectTo` |
+| `NEXT_PUBLIC_SITE_URL` | Reserved for future absolute-URL needs (currently unused by auth) |
 
 In Vercel, set `NEXT_PUBLIC_SITE_URL` to the production URL (e.g.
 `https://budget.kadyluxe.com`).
+
+### Supabase auth settings
+
+Under **Authentication → Providers → Email**, disable **Confirm email** so
+that `signUp` returns a session immediately. With that off, new accounts can
+log in right after creating their password without round-tripping through an
+email link.
 
 ## Database schema
 
@@ -116,8 +125,8 @@ npm run dev
 | Path | Description |
 | --- | --- |
 | `/` | Redirects to `/budget` (authed) or `/login` |
-| `/login` | Magic-link form |
-| `/auth/callback` | Supabase OTP callback |
+| `/login` | Email + password form (with sign-up toggle) |
+| `/auth/sign-out` | POST endpoint that clears the session |
 | `/budget` | Main editable tool (auth required) |
 | `/view/{token}` | Read-only view via share link (no auth) |
 | `/api/partners` | POST — create partner |

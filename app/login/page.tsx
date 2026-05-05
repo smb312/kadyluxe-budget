@@ -19,7 +19,7 @@ export default async function LoginPage() {
           Sign in
         </h1>
         <p className="text-sm text-black/60 mb-6 leading-relaxed">
-          Enter your email to receive a magic link. No password needed.
+          Email and password. Sign up if you&apos;re new.
         </p>
         <LoginForm />
       </div>
