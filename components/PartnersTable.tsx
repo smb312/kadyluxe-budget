@@ -11,7 +11,8 @@ import {
   calculateAnnualCost,
   formatCurrency,
 } from "@/lib/calculations";
-import type { Partner, PartnerType } from "@/lib/types";
+import { MONTHS } from "@/lib/constants";
+import type { Month, Partner, PartnerType } from "@/lib/types";
 
 interface Props {
   partners: Partner[];
@@ -56,7 +57,7 @@ export default function PartnersTable({
           className="grid items-center px-4 py-3 bg-black/[0.03] border-b border-black/10"
           style={{ gridTemplateColumns: COLS }}
         >
-          {["", "Partner", "Category", "Cost", "Type", "Months", "Annual", ""].map(
+          {["", "Partner", "Category", "Cost", "Type", "Start", "Annual", ""].map(
             (h, i) => (
               <div key={i} className="label-mono">
                 {h}
@@ -119,16 +120,21 @@ export default function PartnersTable({
                   <option value="annual">annual</option>
                   <option value="monthly">monthly</option>
                 </select>
-                <input
-                  type="number"
-                  className="editable-input w-[60px] text-right"
-                  value={p.months ?? (p.type === "monthly" ? 12 : "")}
+                <select
+                  className="editable-input w-[80px]"
+                  value={p.start_month}
                   onChange={(e) =>
-                    onUpdate(p.id, { months: parseFloat(e.target.value) || 12 })
+                    onUpdate(p.id, { start_month: e.target.value as Month })
                   }
-                  disabled={readOnly || p.type === "annual"}
-                  placeholder="—"
-                />
+                  disabled={readOnly}
+                  title="Month onboarded — partner is active from this month through April"
+                >
+                  {MONTHS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
                 <div className="mono-font text-sm font-medium text-right pr-3">
                   {formatCurrency(annual)}
                 </div>

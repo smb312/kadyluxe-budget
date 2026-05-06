@@ -1,5 +1,5 @@
 import type { Month, Partner } from "@/lib/types";
-import { calculateAnnualCost } from "@/lib/calculations";
+import { calculateAnnualCost, partnerCostInMonth } from "@/lib/calculations";
 import { MONTHS } from "@/lib/constants";
 import {
   CASHFLOW_MONTHS,
@@ -19,18 +19,26 @@ export const annualFixedRetainer = (partners: Partner[]): number =>
     .filter((p) => !BRONCOS_RE.test(p.name))
     .reduce((s, p) => s + calculateAnnualCost(p), 0);
 
-// Annual influencer working spend, auto-detected by category.
-export const annualInfluencerSpend = (partners: Partner[]): number =>
+// Per-month fixed retainer outflow for a specific calendar month, computed
+// from each partner's start_month. Honors the budget tool's onboarding model:
+// a partner contributes to month M only if M is in their active range.
+export const fixedRetainerInMonth = (
+  partners: Partner[],
+  month: Month,
+): number =>
+  partners
+    .filter((p) => !BRONCOS_RE.test(p.name))
+    .reduce((s, p) => s + partnerCostInMonth(p, month), 0);
+
+// Per-month influencer working spend, auto-detected by category, honoring
+// each influencer partner's start_month.
+export const influencerSpendInMonth = (
+  partners: Partner[],
+  month: Month,
+): number =>
   partners
     .filter((p) => INFLUENCER_RE.test(p.category))
-    .reduce((s, p) => s + calculateAnnualCost(p), 0);
-
-// Per-month allocation: spread evenly over 12 months (per CFO confirmation).
-export const monthlyFixedRetainer = (partners: Partner[]): number =>
-  annualFixedRetainer(partners) / 12;
-
-export const monthlyInfluencerSpend = (partners: Partner[]): number =>
-  annualInfluencerSpend(partners) / 12;
+    .reduce((s, p) => s + partnerCostInMonth(p, month), 0);
 
 // Lag helpers. CASHFLOW_MONTHS only spans May–Dec; spend in months before May
 // is not modeled, so revenue in those lag positions is $0.
@@ -58,14 +66,15 @@ export const paidRevenue = (
 };
 
 // Influencer revenue this month = inf_spend[2 months ago] × inf_ROAS (6-week lag).
+// The lagged spend is now month-specific (varies with start_month).
 export const influencerRevenue = (
   month: CashflowMonth,
-  monthlyInf: number,
+  partners: Partner[],
   a: CashflowAssumptions,
 ): number => {
   const src = monthShifted(month, 2);
   if (!src) return 0;
-  return monthlyInf * a.influencer_roas;
+  return influencerSpendInMonth(partners, src) * a.influencer_roas;
 };
 
 // Email is a % of GROSS, where Gross includes email. Solve algebraically:
@@ -89,19 +98,17 @@ export const computeCashflow = (
   variable: Record<Month, number>,
   a: CashflowAssumptions,
 ): MonthlyRow[] => {
-  const fixedMonthly = monthlyFixedRetainer(partners);
-  const infMonthly = monthlyInfluencerSpend(partners);
-
   let cumulative = 0;
   return CASHFLOW_MONTHS.map<MonthlyRow>((m) => {
+    const fixedRetainer = fixedRetainerInMonth(partners, m);
     const variableWorking = variable[m] ?? 0;
     const broncos = a.broncos_included ? a.broncos_amount / 12 : 0;
     const outTotal =
-      fixedMonthly + variableWorking + a.scott_fee_monthly + broncos;
+      fixedRetainer + variableWorking + a.scott_fee_monthly + broncos;
 
     const baseline = baselineRevenue(m, a);
     const paid = paidRevenue(m, variable, a);
-    const influencer = influencerRevenue(m, infMonthly, a);
+    const influencer = influencerRevenue(m, partners, a);
     const emailPct = a.email_pct_by_month[m] ?? 0;
     const { gross, email } = grossAndEmail(baseline, paid, influencer, emailPct);
     const monthlyNet = gross - outTotal;
@@ -110,7 +117,7 @@ export const computeCashflow = (
     return {
       month: m,
       out: {
-        fixedRetainer: fixedMonthly,
+        fixedRetainer,
         variableWorking,
         scottFee: a.scott_fee_monthly,
         broncos,

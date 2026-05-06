@@ -67,6 +67,7 @@ const seedScenarioIfEmpty = async (scenario: Scenario): Promise<void> => {
         cost: p.cost,
         type: p.type,
         months: p.months,
+        start_month: p.start_month ?? "May",
         included: p.included,
         notes: p.notes,
         sort_order: idx,
@@ -120,6 +121,8 @@ export const fetchBundle = async (
   for (const row of partnerRows ?? []) {
     const slug = idToSlug.get(String(row.scenario_id));
     if (!slug) continue;
+    const startMonthRaw = String(row.start_month ?? "May") as Month;
+    const startMonth: Month = MONTHS.includes(startMonthRaw) ? startMonthRaw : "May";
     const partner: Partner = {
       id: String(row.id),
       scenario_id: String(row.scenario_id),
@@ -129,6 +132,7 @@ export const fetchBundle = async (
       cost: Number(row.cost ?? 0),
       type: row.type === "annual" ? "annual" : "monthly",
       months: row.months == null ? null : Number(row.months),
+      start_month: startMonth,
       included: Boolean(row.included),
       notes: row.notes == null ? null : String(row.notes),
       sort_order: Number(row.sort_order ?? 0),
