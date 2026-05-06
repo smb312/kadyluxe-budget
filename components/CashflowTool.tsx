@@ -139,11 +139,6 @@ export default function CashflowTool({
       totalRow("Email-driven revenue", rows.map((r) => r.in.email)),
       totalRow("Influencer-driven revenue (6-wk lag)", rows.map((r) => r.in.influencer)),
       totalRow("GROSS REVENUE", rows.map((r) => r.in.gross)),
-      totalRow(
-        `Contribution margin × ${(assumptions.contribution_margin * 100).toFixed(0)}%`,
-        rows.map((r) => r.in.netCash - r.in.gross),
-      ),
-      totalRow("NET CASH INFLOW", rows.map((r) => r.in.netCash)),
       [""],
       ["NET POSITION"],
       totalRow("Monthly net", rows.map((r) => r.monthlyNet)),

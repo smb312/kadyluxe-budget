@@ -104,8 +104,7 @@ export const computeCashflow = (
     const influencer = influencerRevenue(m, infMonthly, a);
     const emailPct = a.email_pct_by_month[m] ?? 0;
     const { gross, email } = grossAndEmail(baseline, paid, influencer, emailPct);
-    const netCash = gross * a.contribution_margin;
-    const monthlyNet = netCash - outTotal;
+    const monthlyNet = gross - outTotal;
     cumulative += monthlyNet;
 
     return {
@@ -117,7 +116,7 @@ export const computeCashflow = (
         broncos,
         total: outTotal,
       },
-      in: { baseline, paid, email, influencer, gross, netCash },
+      in: { baseline, paid, email, influencer, gross },
       monthlyNet,
       cumulativeNet: cumulative,
     };

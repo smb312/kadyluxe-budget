@@ -198,25 +198,11 @@ export default function CashflowTable({ rows, assumptions }: Props) {
             highlight="inflow"
             rowIndex={4}
           />
-          <DataRow
-            label={`× Contribution margin (${(assumptions.contribution_margin * 100).toFixed(0)}%)`}
-            values={inn("netCash").map((v, i) => v - inn("gross")[i])}
-            italic
-            highlight="inflow"
-            rowIndex={5}
-          />
-          <DataRow
-            label="NET CASH INFLOW"
-            values={inn("netCash")}
-            bold
-            highlight="inflow"
-            rowIndex={6}
-          />
 
           <SectionHeader label="Net position" accent="net" />
           <tr className="bg-black/[0.04]">
             <td className="px-3 py-2 text-[11.5px] font-semibold whitespace-nowrap">
-              Monthly net (inflow − outflow)
+              Monthly net (gross revenue − outflows)
             </td>
             {monthlyNet.map((v, i) => (
               <td

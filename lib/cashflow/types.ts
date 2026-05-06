@@ -41,7 +41,6 @@ export interface MonthlyInflows {
   email: number;
   influencer: number;
   gross: number;
-  netCash: number;
 }
 
 export interface MonthlyRow {
