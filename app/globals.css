@@ -166,4 +166,51 @@ body {
   .month-bar {
     transition: all 0.3s ease;
   }
+
+  .vision-hatch {
+    background-color: white;
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.05),
+      rgba(0, 0, 0, 0.05) 4px,
+      transparent 4px,
+      transparent 10px
+    );
+  }
+
+  .ghost-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 2px 4px;
+    transition: all 0.15s ease;
+    width: 100%;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  .ghost-input:hover:not(:disabled):not(:focus) {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.45);
+  }
+  .ghost-input:focus {
+    outline: none;
+    border-color: rgba(0, 0, 0, 0.6);
+    background: white;
+  }
+  .ghost-input:disabled {
+    cursor: default;
+  }
+
+  .reveal-on-hover {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+  }
+  .group:hover .reveal-on-hover,
+  .group:focus-within .reveal-on-hover {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }

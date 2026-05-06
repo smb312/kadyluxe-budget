@@ -19,9 +19,8 @@ import PartnersTable from "./PartnersTable";
 import MonthlyVariable from "./MonthlyVariable";
 import ComparisonTable from "./ComparisonTable";
 import AddPartnerModal from "./AddPartnerModal";
-import AuthBar from "./AuthBar";
-import ViewOnlyBanner from "./ViewOnlyBanner";
 import ShareLinkPanel from "./ShareLinkPanel";
+import TopNav from "./TopNav";
 
 interface Props {
   scenarios: Scenario[];
@@ -276,14 +275,14 @@ export default function BudgetTool({
 
   return (
     <div className="min-h-screen bg-cream text-ink">
-      {readOnly && <ViewOnlyBanner ownerEmail={userEmail} />}
+      {!readOnly && <TopNav email={userEmail} saving={saving} />}
 
       <div className="grain relative border-b border-black/10 bg-cream">
         <div className="max-w-[1400px] mx-auto px-8 pt-8 pb-6 relative">
           <div className="flex justify-between items-end flex-wrap gap-4">
             <div>
               <div className="mono-font text-[11px] tracking-[0.15em] uppercase text-black/50 mb-2">
-                KADYLUXE × COAST / FRACTIONAL CMO
+                FRACTIONAL CMO · 2026 BUDGET
               </div>
               <h1
                 className="display-font font-medium leading-none tracking-tight m-0"
@@ -301,7 +300,6 @@ export default function BudgetTool({
               <button onClick={exportData} className="btn-primary">
                 <Download size={14} /> Export JSON
               </button>
-              {!readOnly && <AuthBar email={userEmail} saving={saving} />}
             </div>
           </div>
         </div>

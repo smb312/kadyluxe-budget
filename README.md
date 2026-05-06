@@ -127,12 +127,31 @@ npm run dev
 | `/` | Redirects to `/budget` (authed) or `/login` |
 | `/login` | Email + password form (with sign-up toggle) |
 | `/auth/sign-out` | POST endpoint that clears the session |
-| `/budget` | Main editable tool (auth required) |
-| `/view/{token}` | Read-only view via share link (no auth) |
-| `/api/partners` | POST — create partner |
-| `/api/partners/[id]` | PATCH/DELETE |
+| `/budget` | 2026 budget tool (auth required) |
+| `/team` | Team architecture / marketing operating system (auth required) |
+| `/view/{token}` | Read-only tabbed view (budget + team) via share link |
+| `/api/partners` / `/api/partners/[id]` | Budget partner CRUD |
 | `/api/monthly` | PATCH — upsert monthly variable cell |
 | `/api/share` | POST create / DELETE revoke share link |
+| `/api/team/stages/[id]` | PATCH stage name / sub-label / KPI |
+| `/api/team/partners` / `/api/team/partners/[id]` | Team partner CRUD (max 6 per stage) |
+| `/api/team/foundation/[id]` | PATCH foundation cell |
+| `/api/team/operator` | PATCH operator block |
+| `/api/team/capability` | PATCH capability callout |
+| `/api/team/culture` | PATCH "what this is / is not" lists |
+
+## Team Architecture page
+
+`/team` is the editorial one-pager (Marketing operating system). All cells
+are inline-editable on hover; status (confirmed / recommended / vision) is
+set via a small swatch picker that appears on cell hover. The 5 stages and
+3 foundation cells are intentionally locked in count — the constraint is
+the feature.
+
+Schema: see `db/team_schema.sql`. Run once in Supabase SQL Editor before
+visiting `/team`. The seed (20 partners, 3 foundation rows, operator,
+capability callout, "what this is / is not" lists) is inserted
+automatically by the server on first load if the tables are empty.
 
 ## Notes
 

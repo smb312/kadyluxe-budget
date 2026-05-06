@@ -159,9 +159,9 @@ export const loadBudget = async (): Promise<BudgetData> => {
   return { scenarios, bundle };
 };
 
-export const loadBudgetForShareToken = async (
+export const validateShareToken = async (
   token: string,
-): Promise<{ data: BudgetData; ownerEmail: string | null } | null> => {
+): Promise<{ ownerEmail: string | null } | null> => {
   const admin = createServiceClient();
   const { data: link } = await admin
     .from("share_links")
@@ -172,11 +172,19 @@ export const loadBudgetForShareToken = async (
   if (!link) return null;
   if (link.expires_at && new Date(link.expires_at) <= new Date()) return null;
 
-  const data = await loadBudget();
   let ownerEmail: string | null = null;
   if (link.created_by) {
     const { data: u } = await admin.auth.admin.getUserById(String(link.created_by));
     ownerEmail = u?.user?.email ?? null;
   }
-  return { data, ownerEmail };
+  return { ownerEmail };
+};
+
+export const loadBudgetForShareToken = async (
+  token: string,
+): Promise<{ data: BudgetData; ownerEmail: string | null } | null> => {
+  const meta = await validateShareToken(token);
+  if (!meta) return null;
+  const data = await loadBudget();
+  return { data, ownerEmail: meta.ownerEmail };
 };
