@@ -203,24 +203,6 @@ create policy "anon read cashflow_assumptions" on cashflow_assumptions for selec
 
 A row is auto-inserted for the user on first visit if missing.
 
-### Adding Jan–Apr manual entry (later migration)
-
-A `manual_jan_apr` JSONB column was added so the CFO can enter
-pre-period (Jan–Apr) outflows and gross revenue manually. Run once if
-your `cashflow_assumptions` table predates this:
-
-```sql
-alter table cashflow_assumptions
-  add column if not exists manual_jan_apr jsonb default '{"Jan":{"outflows":0,"gross":0},"Feb":{"outflows":0,"gross":0},"Mar":{"outflows":0,"gross":0},"Apr":{"outflows":0,"gross":0}}'::jsonb;
-```
-
-The cashflow table now spans Jan–Dec. Jan–Apr columns render only
-TOTAL OUTFLOWS and GROSS REVENUE as editable inputs (other rows show
-"—" since you're not modeling those breakdowns). Net cash inflow for
-Jan–Apr is still `gross × contribution_margin` so the margin
-assumption stays consistent. Cumulative net carries through from Jan
-onward.
-
 ## Notes
 
 - The original `budget_tool.jsx` reference component is kept at the repo root.

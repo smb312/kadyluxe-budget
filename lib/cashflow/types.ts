@@ -1,28 +1,13 @@
 import type { Month } from "@/lib/types";
 
-export const JAN_APR_MONTHS = ["Jan", "Feb", "Mar", "Apr"] as const;
-export type JanAprMonth = (typeof JAN_APR_MONTHS)[number];
-
 export const CASHFLOW_MONTHS = [
   "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ] as const;
 export type CashflowMonth = (typeof CASHFLOW_MONTHS)[number];
 
-export const ALL_CASHFLOW_MONTHS = [
-  ...JAN_APR_MONTHS,
-  ...CASHFLOW_MONTHS,
-] as const;
-export type AnyCashflowMonth = (typeof ALL_CASHFLOW_MONTHS)[number];
-
 // JSONB columns are stored with the 8 cashflow months as keys.
 // Using string for runtime safety (extra/missing keys won't crash the math).
 export type MonthMap = Record<string, number>;
-
-export interface ManualMonthData {
-  outflows: number;
-  gross: number;
-}
-export type ManualJanApr = Record<string, ManualMonthData>;
 
 export interface CashflowAssumptions {
   user_id: string;
@@ -40,7 +25,6 @@ export interface CashflowAssumptions {
   broncos_included: boolean;
   broncos_amount: number;
   selected_scenario_slug: string;
-  manual_jan_apr: ManualJanApr;
 }
 
 export interface MonthlyOutflows {
@@ -61,8 +45,7 @@ export interface MonthlyInflows {
 }
 
 export interface MonthlyRow {
-  month: AnyCashflowMonth;
-  manual: boolean;
+  month: CashflowMonth;
   out: MonthlyOutflows;
   in: MonthlyInflows;
   monthlyNet: number;
@@ -71,7 +54,7 @@ export interface MonthlyRow {
 
 export interface CashflowKpis {
   annualMarketingInvestment: number;
-  annualGrossRevenue: number;
+  windowGrossRevenue: number;
   blendedRoas: number;
   blendedCac: number;
   customers: number;
@@ -81,4 +64,3 @@ export interface CashflowKpis {
 // Helper for the Month-typed variable lookup from the budget bundle.
 export const isCashflowMonth = (m: Month): m is CashflowMonth =>
   (CASHFLOW_MONTHS as readonly string[]).includes(m);
-

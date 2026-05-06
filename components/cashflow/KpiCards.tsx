@@ -18,17 +18,17 @@ export default function KpiCards({ kpis }: Props) {
     {
       label: "Annual marketing investment",
       value: formatCurrency(kpis.annualMarketingInvestment),
-      hint: "Full year: Jan–Apr manual outflows + May–Dec modeled outflows",
+      hint: "All 12 months: retainers + variable + Scott fee + Broncos (if on)",
     },
     {
-      label: "Annual gross revenue",
-      value: formatCurrency(kpis.annualGrossRevenue),
-      hint: "Jan–Apr manual gross + May–Dec modeled gross",
+      label: "Gross revenue (May–Dec projected)",
+      value: formatCurrency(kpis.windowGrossRevenue),
+      hint: "Sum of modeled gross across the 8-month window",
     },
     {
       label: "Blended ROAS",
       value: kpis.blendedRoas > 0 ? `${kpis.blendedRoas.toFixed(2)}x` : "—",
-      hint: "May–Dec modeled gross ÷ paid working spend (ex-fees, manual months excluded)",
+      hint: "Window gross ÷ window paid working spend (ex-fees)",
     },
     {
       label: "Blended CAC",

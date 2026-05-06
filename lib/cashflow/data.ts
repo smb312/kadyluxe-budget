@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { DEFAULT_ASSUMPTIONS, DEFAULT_MANUAL_JAN_APR } from "./constants";
-import type { CashflowAssumptions, ManualJanApr, MonthMap } from "./types";
+import { DEFAULT_ASSUMPTIONS } from "./constants";
+import type { CashflowAssumptions, MonthMap } from "./types";
 
 const toNumber = (v: unknown, fallback: number): number => {
   if (v == null) return fallback;
@@ -14,27 +14,6 @@ const toMonthMap = (v: unknown, fallback: MonthMap): MonthMap => {
   for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
     const n = Number(raw);
     if (Number.isFinite(n)) out[k] = n;
-  }
-  return out;
-};
-
-const toManualJanApr = (v: unknown, fallback: ManualJanApr): ManualJanApr => {
-  if (!v || typeof v !== "object") return fallback;
-  const out: ManualJanApr = {
-    Jan: { ...fallback.Jan },
-    Feb: { ...fallback.Feb },
-    Mar: { ...fallback.Mar },
-    Apr: { ...fallback.Apr },
-  };
-  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
-    if (!raw || typeof raw !== "object") continue;
-    const cell = raw as Record<string, unknown>;
-    const outflows = Number(cell.outflows);
-    const gross = Number(cell.gross);
-    out[k] = {
-      outflows: Number.isFinite(outflows) ? outflows : 0,
-      gross: Number.isFinite(gross) ? gross : 0,
-    };
   }
   return out;
 };
@@ -78,7 +57,6 @@ const rowToAssumptions = (row: Record<string, unknown>): CashflowAssumptions => 
   selected_scenario_slug: String(
     row.selected_scenario_slug ?? DEFAULT_ASSUMPTIONS.selected_scenario_slug,
   ),
-  manual_jan_apr: toManualJanApr(row.manual_jan_apr, DEFAULT_MANUAL_JAN_APR),
 });
 
 export const loadCashflowAssumptions = async (
