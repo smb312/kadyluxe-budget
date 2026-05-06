@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import type { Partner, PartnerType } from "@/lib/types";
+import { MONTHS } from "@/lib/constants";
+import type { Month, Partner, PartnerType } from "@/lib/types";
 
 type Draft = Pick<
   Partner,
-  "name" | "category" | "cost" | "type" | "months" | "included" | "notes"
+  "name" | "category" | "cost" | "type" | "months" | "start_month" | "included" | "notes"
 >;
 
 interface Props {
@@ -21,6 +22,7 @@ export default function AddPartnerModal({ onAdd, onCancel }: Props) {
     cost: 0,
     type: "monthly",
     months: 12,
+    start_month: "May",
     included: true,
     notes: "",
   });
@@ -90,19 +92,20 @@ export default function AddPartnerModal({ onAdd, onCancel }: Props) {
                 <option value="annual">Annual</option>
               </select>
             </Field>
-            <Field label="Months">
-              <input
-                type="number"
-                value={form.months ?? 12}
+            <Field label="Start month">
+              <select
+                value={form.start_month}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    months: parseFloat(e.target.value) || 12,
-                  })
+                  setForm({ ...form, start_month: e.target.value as Month })
                 }
-                disabled={form.type === "annual"}
-                className="modal-input disabled:opacity-40"
-              />
+                className="modal-input"
+              >
+                {MONTHS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
           <Field label="Notes (optional)">

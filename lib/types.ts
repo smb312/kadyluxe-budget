@@ -27,6 +27,7 @@ export interface Partner {
   cost: number;
   type: PartnerType;
   months: number | null;
+  start_month: Month;
   included: boolean;
   notes: string | null;
   sort_order: number;

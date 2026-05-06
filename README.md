@@ -203,6 +203,27 @@ create policy "anon read cashflow_assumptions" on cashflow_assumptions for selec
 
 A row is auto-inserted for the user on first visit if missing.
 
+### Partner start_month migration
+
+Each partner now has a `start_month` that says when they were onboarded.
+The partner is treated as active from that month through April (end of
+fiscal year), and cash flow outflows for that partner show up only in
+those active months. This replaces the old `months` count, which
+couldn't express "when does the cash actually leave."
+
+Run once in Supabase:
+
+```sql
+alter table partners
+  add column if not exists start_month text not null default 'May';
+```
+
+After the column lands, all existing partners default to **May** (so
+they appear active May–Apr). Edit each partner's start month from the
+budget table dropdown to reflect actual onboarding dates. Total annual
+cost = `cost × active months` for monthly partners, and equals `cost`
+for annual partners (cash spreads evenly across active months).
+
 ## Notes
 
 - The original `budget_tool.jsx` reference component is kept at the repo root.

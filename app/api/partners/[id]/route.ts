@@ -8,6 +8,7 @@ const ALLOWED_FIELDS = [
   "cost",
   "type",
   "months",
+  "start_month",
   "included",
   "notes",
   "sort_order",

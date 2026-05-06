@@ -17,6 +17,7 @@ interface SeedPartner {
   cost: number;
   type: "annual" | "monthly";
   months: number | null;
+  start_month?: Month;
   included: boolean;
   notes: string;
 }

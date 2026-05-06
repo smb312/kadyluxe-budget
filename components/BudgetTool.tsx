@@ -32,7 +32,7 @@ interface Props {
 
 type PartnerDraft = Pick<
   Partner,
-  "name" | "category" | "cost" | "type" | "months" | "included" | "notes"
+  "name" | "category" | "cost" | "type" | "months" | "start_month" | "included" | "notes"
 >;
 
 const pickDefaultActive = (scenarios: Scenario[]): ScenarioSlug => {

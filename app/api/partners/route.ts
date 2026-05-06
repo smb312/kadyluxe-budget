@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { recordChange } from "@/lib/changeLog";
-import type { Partner } from "@/lib/types";
+import { MONTHS } from "@/lib/constants";
+import type { Month, Partner } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
     cost: Number(body.cost ?? 0),
     type: body.type === "annual" ? "annual" : "monthly",
     months: body.type === "annual" ? null : Number(body.months ?? 12),
+    start_month: String(body.start_month ?? "May"),
     included: body.included !== false,
     notes: body.notes ?? null,
     sort_order: count ?? 0,
@@ -58,6 +60,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const startMonthRaw = String(data.start_month ?? "May") as Month;
+  const startMonth: Month = MONTHS.includes(startMonthRaw) ? startMonthRaw : "May";
   const partner: Partner = {
     id: String(data.id),
     scenario_id: String(data.scenario_id),
@@ -67,6 +71,7 @@ export async function POST(request: NextRequest) {
     cost: Number(data.cost),
     type: data.type,
     months: data.months,
+    start_month: startMonth,
     included: Boolean(data.included),
     notes: data.notes,
     sort_order: Number(data.sort_order ?? 0),
