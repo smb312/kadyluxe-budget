@@ -12,8 +12,14 @@ interface Props {
 }
 
 const Tip = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex items-center text-black/35 hover:text-black/70 cursor-help align-middle">
+  <span className="relative group/tip inline-flex items-center align-middle text-black/35 hover:text-black/70 cursor-help">
     <HelpCircle size={11} />
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 rounded-md bg-ink text-cream text-[11px] leading-snug px-3 py-2 opacity-0 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 transition-opacity duration-150 shadow-lg"
+    >
+      {text}
+    </span>
   </span>
 );
 
