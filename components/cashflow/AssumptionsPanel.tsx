@@ -290,18 +290,6 @@ export default function AssumptionsPanel({ assumptions, onPatch }: Props) {
                 onChange={(n) => onPatch({ site_cvr: n / 100 })}
               />
             </div>
-            <div className="grid items-center gap-2" style={{ gridTemplateColumns: "180px 1fr" }}>
-              <div className="text-[11.5px] flex items-center gap-1.5">
-                Contribution margin <Tip text={TOOLTIPS.contribution_margin} />
-              </div>
-              <NumInput
-                value={Math.round(assumptions.contribution_margin * 100)}
-                step={1}
-                suffix="%"
-                width={70}
-                onChange={(n) => onPatch({ contribution_margin: n / 100 })}
-              />
-            </div>
           </Section>
 
           <Section title="Outflow overrides" defaultOpen={false}>
