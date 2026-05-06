@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { loadBudgetForShareToken } from "@/lib/data";
-import BudgetTool from "@/components/BudgetTool";
+import { loadBudget, validateShareToken } from "@/lib/data";
+import { loadTeam } from "@/lib/team/data";
+import TabbedView from "./TabbedView";
 
 export const dynamic = "force-dynamic";
 
@@ -9,16 +10,16 @@ export default async function ViewPage({
 }: {
   params: { token: string };
 }) {
-  const result = await loadBudgetForShareToken(params.token);
-  if (!result) notFound();
+  const meta = await validateShareToken(params.token);
+  if (!meta) notFound();
+
+  const [budget, team] = await Promise.all([loadBudget(), loadTeam()]);
 
   return (
-    <BudgetTool
-      scenarios={result.data.scenarios}
-      initialBundle={result.data.bundle}
-      initialShareLinks={[]}
-      userEmail={result.ownerEmail}
-      mode="view"
+    <TabbedView
+      ownerEmail={meta.ownerEmail}
+      budget={budget}
+      team={team}
     />
   );
 }
