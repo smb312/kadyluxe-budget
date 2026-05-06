@@ -76,28 +76,48 @@ function MonthlyRow({
   display,
 }: MonthlyRowProps) {
   return (
-    <div className="grid items-center gap-2" style={{ gridTemplateColumns: "180px repeat(8, 1fr)" }}>
-      <div className="text-[11.5px] flex items-center gap-1.5">
-        {label} <Tip text={tooltip} />
-      </div>
-      {CASHFLOW_MONTHS.map((m) => {
-        const raw = values[m] ?? 0;
-        const shown = display ? display(raw) : raw;
-        return (
-          <NumInput
+    <div className="flex flex-col gap-1">
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: "180px repeat(8, 1fr)" }}
+      >
+        <div />
+        {CASHFLOW_MONTHS.map((m) => (
+          <div
             key={m}
-            value={shown}
-            step={step}
-            prefix={prefix}
-            suffix={suffix}
-            width={70}
-            onChange={(n) => {
-              const stored = format ? format(n) : n;
-              onChange({ ...values, [m]: stored });
-            }}
-          />
-        );
-      })}
+            className="mono-font text-[9px] tracking-[0.15em] uppercase text-black/40 text-center"
+            style={{ width: 70 }}
+          >
+            {m}
+          </div>
+        ))}
+      </div>
+      <div
+        className="grid items-center gap-2"
+        style={{ gridTemplateColumns: "180px repeat(8, 1fr)" }}
+      >
+        <div className="text-[11.5px] flex items-center gap-1.5">
+          {label} <Tip text={tooltip} />
+        </div>
+        {CASHFLOW_MONTHS.map((m) => {
+          const raw = values[m] ?? 0;
+          const shown = display ? display(raw) : raw;
+          return (
+            <NumInput
+              key={m}
+              value={shown}
+              step={step}
+              prefix={prefix}
+              suffix={suffix}
+              width={70}
+              onChange={(n) => {
+                const stored = format ? format(n) : n;
+                onChange({ ...values, [m]: stored });
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
