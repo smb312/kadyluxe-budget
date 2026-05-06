@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
-const ALLOWED = ["name", "vendor", "status"] as const;
+const ALLOWED = ["name", "partner", "status"] as const;
 const VALID_STATUS = new Set(["confirmed", "recommended", "vision"]);
 
 export async function PATCH(

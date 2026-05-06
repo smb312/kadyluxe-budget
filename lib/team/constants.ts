@@ -1,4 +1,4 @@
-import type { StageSlug, TeamStatus } from "./types";
+import type { TeamStatus } from "./types";
 
 export const STATUS_LABEL: Record<TeamStatus, string> = {
   confirmed: "Confirmed / live by June",
@@ -6,107 +6,69 @@ export const STATUS_LABEL: Record<TeamStatus, string> = {
   vision: "2027 vision",
 };
 
-export const STAGE_SLUGS: StageSlug[] = [
-  "awareness",
-  "consideration",
-  "conversion",
-  "retention",
-  "advocacy",
-];
-
 interface SeedStage {
-  slug: StageSlug;
   name: string;
-  sub_label: string;
   kpi: string;
-  sort_order: number;
+  position: number;
 }
 
 interface SeedPartner {
-  stage_slug: StageSlug;
+  stage_position: number;
   name: string;
-  vendor: string;
+  partner: string;
   status: TeamStatus;
-  sort_order: number;
+  position: number;
 }
 
 interface SeedFoundation {
   name: string;
-  vendor: string;
+  partner: string;
   status: TeamStatus;
-  sort_order: number;
+  position: number;
 }
 
 export const SEED_STAGES: SeedStage[] = [
-  { slug: "awareness",     name: "Awareness",     sub_label: "Reached",   kpi: "Reach, CPM",        sort_order: 0 },
-  { slug: "consideration", name: "Consideration", sub_label: "Engaged",   kpi: "CTR, sessions",     sort_order: 1 },
-  { slug: "conversion",    name: "Conversion",    sub_label: "Purchased", kpi: "CVR, ROAS",         sort_order: 2 },
-  { slug: "retention",     name: "Retention",     sub_label: "Repeat",    kpi: "Repeat rate, LTV",  sort_order: 3 },
-  { slug: "advocacy",      name: "Advocacy",      sub_label: "Referred",  kpi: "Referral, UGC",     sort_order: 4 },
+  { name: "Awareness",     kpi: "Reach, CPM",        position: 0 },
+  { name: "Consideration", kpi: "CTR, sessions",     position: 1 },
+  { name: "Conversion",    kpi: "CVR, ROAS",         position: 2 },
+  { name: "Retention",     kpi: "Repeat rate, LTV",  position: 3 },
+  { name: "Advocacy",      kpi: "Referral, UGC",     position: 4 },
 ];
 
 export const SEED_PARTNERS: SeedPartner[] = [
-  // Awareness
-  { stage_slug: "awareness", name: "Meta paid social", vendor: "Marketer.com",         status: "recommended", sort_order: 0 },
-  { stage_slug: "awareness", name: "TikTok organic",   vendor: "Savannah + Marketer",  status: "recommended", sort_order: 1 },
-  { stage_slug: "awareness", name: "Influencer TOF",   vendor: "10pm Curfew",          status: "vision",      sort_order: 2 },
-  { stage_slug: "awareness", name: "PR + earned",      vendor: "2027 vision",          status: "vision",      sort_order: 3 },
+  // Awareness (0)
+  { stage_position: 0, name: "Meta paid social", partner: "Marketer.com",         status: "recommended", position: 0 },
+  { stage_position: 0, name: "TikTok organic",   partner: "Savannah + Marketer",  status: "recommended", position: 1 },
+  { stage_position: 0, name: "Influencer TOF",   partner: "10pm Curfew",          status: "vision",      position: 2 },
+  { stage_position: 0, name: "PR + earned",      partner: "2027 vision",          status: "vision",      position: 3 },
 
-  // Consideration
-  { stage_slug: "consideration", name: "Google Ads",      vendor: "Marketer.com",  status: "confirmed",   sort_order: 0 },
-  { stage_slug: "consideration", name: "SEO + content",   vendor: "Kait",          status: "confirmed",   sort_order: 1 },
-  { stage_slug: "consideration", name: "Retargeting",     vendor: "Marketer.com",  status: "confirmed",   sort_order: 2 },
-  { stage_slug: "consideration", name: "Creator content", vendor: "10pm Curfew",   status: "recommended", sort_order: 3 },
+  // Consideration (1)
+  { stage_position: 1, name: "Google Ads",      partner: "Marketer.com",  status: "confirmed",   position: 0 },
+  { stage_position: 1, name: "SEO + content",   partner: "Kait",          status: "confirmed",   position: 1 },
+  { stage_position: 1, name: "Retargeting",     partner: "Marketer.com",  status: "confirmed",   position: 2 },
+  { stage_position: 1, name: "Creator content", partner: "10pm Curfew",   status: "recommended", position: 3 },
 
-  // Conversion
-  { stage_slug: "conversion", name: "Site CRO",            vendor: "D2C Design",        status: "recommended", sort_order: 0 },
-  { stage_slug: "conversion", name: "PDP / landing pages", vendor: "D2C + Coast",       status: "confirmed",   sort_order: 1 },
-  { stage_slug: "conversion", name: "Cart + checkout",     vendor: "Shopify + Klaviyo", status: "confirmed",   sort_order: 2 },
-  { stage_slug: "conversion", name: "TikTok Shop",         vendor: "Somerce",           status: "vision",      sort_order: 3 },
+  // Conversion (2)
+  { stage_position: 2, name: "Site CRO",            partner: "D2C Design",        status: "recommended", position: 0 },
+  { stage_position: 2, name: "PDP / landing pages", partner: "D2C + Coast",       status: "confirmed",   position: 1 },
+  { stage_position: 2, name: "Cart + checkout",     partner: "Shopify + Klaviyo", status: "confirmed",   position: 2 },
+  { stage_position: 2, name: "TikTok Shop",         partner: "Somerce",           status: "vision",      position: 3 },
 
-  // Retention
-  { stage_slug: "retention", name: "Email lifecycle", vendor: "Klaviyo + Josh",   status: "confirmed", sort_order: 0 },
-  { stage_slug: "retention", name: "SMS",             vendor: "Klaviyo SMS",      status: "confirmed", sort_order: 1 },
-  { stage_slug: "retention", name: "VIP / loyalty",   vendor: "Klaviyo segments", status: "confirmed", sort_order: 2 },
-  { stage_slug: "retention", name: "Subscription",    vendor: "2027 vision",      status: "vision",    sort_order: 3 },
+  // Retention (3)
+  { stage_position: 3, name: "Email lifecycle", partner: "Klaviyo + Josh",   status: "confirmed", position: 0 },
+  { stage_position: 3, name: "SMS",             partner: "Klaviyo SMS",      status: "confirmed", position: 1 },
+  { stage_position: 3, name: "VIP / loyalty",   partner: "Klaviyo segments", status: "confirmed", position: 2 },
+  { stage_position: 3, name: "Subscription",    partner: "2027 vision",      status: "vision",    position: 3 },
 
-  // Advocacy
-  { stage_slug: "advocacy", name: "UGC reviews",        vendor: "10pm Curfew",  status: "recommended", sort_order: 0 },
-  { stage_slug: "advocacy", name: "Affiliate",          vendor: "Somerce",      status: "vision",      sort_order: 1 },
-  { stage_slug: "advocacy", name: "Cheerleader posts",  vendor: "Direct + Joel", status: "confirmed",  sort_order: 2 },
-  { stage_slug: "advocacy", name: "Ambassador",         vendor: "2027 vision",  status: "vision",      sort_order: 3 },
+  // Advocacy (4)
+  { stage_position: 4, name: "UGC reviews",        partner: "10pm Curfew",   status: "recommended", position: 0 },
+  { stage_position: 4, name: "Affiliate",          partner: "Somerce",       status: "vision",      position: 1 },
+  { stage_position: 4, name: "Cheerleader posts",  partner: "Direct + Joel", status: "confirmed",   position: 2 },
+  { stage_position: 4, name: "Ambassador",         partner: "2027 vision",   status: "vision",      position: 3 },
 ];
 
 export const SEED_FOUNDATION: SeedFoundation[] = [
-  { name: "Tracking + attribution", vendor: "PAZ Analytics — pixel + UTM",     status: "recommended", sort_order: 0 },
-  { name: "Creative production",    vendor: "Keghan + Tacy + BTS Design",      status: "confirmed",   sort_order: 1 },
-  { name: "Brand + storytelling",   vendor: "Keghan — campaign direction",     status: "confirmed",   sort_order: 2 },
+  { name: "Tracking + attribution", partner: "PAZ Analytics — pixel + UTM",     status: "recommended", position: 0 },
+  { name: "Creative production",    partner: "Keghan + Tacy + BTS Design",      status: "confirmed",   position: 1 },
+  { name: "Brand + storytelling",   partner: "Keghan — campaign direction",     status: "confirmed",   position: 2 },
 ];
-
-export const SEED_OPERATOR = {
-  name: "Scott Bauer — fractional CMO via Coast",
-  tagline: "Strategy. Vendor coordination. Budget allocation. Channel integration.",
-  body: "The connective tissue across every stage above and every partner below.",
-};
-
-export const SEED_CAPABILITY = {
-  section_title: "Lever-pulling capability — the August 2026 deliverable",
-  callout_title: "24-hour team-specific deployment",
-  callout_body:
-    "When LSU goes 4-0 in week 4, the system deploys a full LSU campaign — paid ads, team-segmented email, influencer activations, and landing page — within 24 hours. Not 2 weeks. This is what the foundation buys: speed at peak season.",
-};
-
-export const SEED_CULTURE = {
-  is_list: [
-    "Senior strategy, junior to mid execution",
-    "Specialist vendors per channel",
-    "Integrated under one operator",
-    "Built to scale into 2027",
-  ],
-  is_not_list: [
-    "A single agency of record",
-    "Full in-house team",
-    "Generalist branding shop",
-    "Discount-driven Fanatics-style ops",
-  ],
-};

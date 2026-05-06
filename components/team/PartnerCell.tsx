@@ -38,8 +38,8 @@ export default function PartnerCell({ partner, readOnly, onUpdate, onRemove }: P
         placeholder="Channel"
       />
       <input
-        value={partner.vendor}
-        onChange={(e) => onUpdate(partner.id, { vendor: e.target.value })}
+        value={partner.partner}
+        onChange={(e) => onUpdate(partner.id, { partner: e.target.value })}
         disabled={readOnly}
         className="ghost-input text-[11px] mt-0.5 opacity-80"
         placeholder="Vendor / partner"

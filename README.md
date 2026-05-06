@@ -133,12 +133,12 @@ npm run dev
 | `/api/partners` / `/api/partners/[id]` | Budget partner CRUD |
 | `/api/monthly` | PATCH — upsert monthly variable cell |
 | `/api/share` | POST create / DELETE revoke share link |
-| `/api/team/stages/[id]` | PATCH stage name / sub-label / KPI |
+| `/api/team/stages/[id]` | PATCH stage name / KPI |
 | `/api/team/partners` / `/api/team/partners/[id]` | Team partner CRUD (max 6 per stage) |
 | `/api/team/foundation/[id]` | PATCH foundation cell |
-| `/api/team/operator` | PATCH operator block |
-| `/api/team/capability` | PATCH capability callout |
-| `/api/team/culture` | PATCH "what this is / is not" lists |
+| `/api/team/operator` | PATCH operator name / description (writes to `team_settings`) |
+| `/api/team/capability` | PATCH lever title / description (writes to `team_settings`) |
+| `/api/team/culture` | PATCH "what this is / is not" lists (writes to `team_settings`) |
 
 ## Team Architecture page
 
@@ -148,10 +148,12 @@ set via a small swatch picker that appears on cell hover. The 5 stages and
 3 foundation cells are intentionally locked in count — the constraint is
 the feature.
 
-Schema: see `db/team_schema.sql`. Run once in Supabase SQL Editor before
-visiting `/team`. The seed (20 partners, 3 foundation rows, operator,
-capability callout, "what this is / is not" lists) is inserted
-automatically by the server on first load if the tables are empty.
+The team tables (`team_stages`, `team_partners`, `team_foundation`,
+`team_settings`) already exist in the production Supabase project; no
+migration is required. On first load `/team` auto-seeds 5 stages, 20
+partners, 3 foundation rows, and a single `team_settings` row (operator
+name + description, lever title + description, and the "what this is /
+is not" JSONB lists) if those tables are empty.
 
 ## Notes
 

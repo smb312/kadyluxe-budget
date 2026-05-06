@@ -12,7 +12,7 @@ export default async function TeamPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const team = await loadTeam();
+  const team = await loadTeam(user.id);
 
   return (
     <TeamArchitecture

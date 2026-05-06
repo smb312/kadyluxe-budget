@@ -30,7 +30,7 @@ export default function PartnerGrid({
       {stages.map((stage) => {
         const inStage = partners
           .filter((p) => p.stage_id === stage.id)
-          .sort((a, b) => a.sort_order - b.sort_order);
+          .sort((a, b) => a.position - b.position);
         const canAdd = !readOnly && inStage.length < MAX_PARTNERS_PER_STAGE;
 
         return (

@@ -13,7 +13,10 @@ export default async function ViewPage({
   const meta = await validateShareToken(params.token);
   if (!meta) notFound();
 
-  const [budget, team] = await Promise.all([loadBudget(), loadTeam()]);
+  const [budget, team] = await Promise.all([
+    loadBudget(),
+    loadTeam(null, { seed: false }),
+  ]);
 
   return (
     <TabbedView

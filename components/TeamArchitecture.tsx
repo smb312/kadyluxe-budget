@@ -4,12 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { useDebouncedCallback } from "@/lib/hooks";
 import type {
-  TeamCapability,
-  TeamCulture,
   TeamData,
   TeamFoundation,
-  TeamOperator,
   TeamPartner,
+  TeamSettings,
   TeamStage,
 } from "@/lib/team/types";
 import TopNav from "./TopNav";
@@ -32,9 +30,7 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
   const [stages, setStages] = useState<TeamStage[]>(initial.stages);
   const [partners, setPartners] = useState<TeamPartner[]>(initial.partners);
   const [foundation, setFoundation] = useState<TeamFoundation[]>(initial.foundation);
-  const [operator, setOperator] = useState<TeamOperator | null>(initial.operator);
-  const [capability, setCapability] = useState<TeamCapability | null>(initial.capability);
-  const [culture, setCulture] = useState<TeamCulture | null>(initial.culture);
+  const [settings, setSettings] = useState<TeamSettings | null>(initial.settings);
 
   const inflight = useRef(0);
   const [saving, setSaving] = useState(false);
@@ -110,11 +106,10 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
     const optimistic: TeamPartner = {
       id: tempId,
       stage_id: stageId,
-      stage_slug: stage.slug,
       name: "",
-      vendor: "",
+      partner: "",
       status: "recommended",
-      sort_order: inStage.length,
+      position: inStage.length,
     };
     setPartners((prev) => [...prev, optimistic]);
 
@@ -123,7 +118,7 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
       body: JSON.stringify({
         stage_id: stageId,
         name: "",
-        vendor: "",
+        partner: "",
         status: "recommended",
       }),
     });
@@ -135,7 +130,7 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
           ? {
               ...optimistic,
               id: String(created.id),
-              sort_order: Number(created.sort_order ?? optimistic.sort_order),
+              position: Number(created.position ?? optimistic.position),
             }
           : p,
       ),
@@ -159,51 +154,63 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
     debouncedFoundationSave(id, patch);
   };
 
-  // ---- Operator / Capability / Culture ---------------------------------
+  // ---- Settings: operator / capability / culture -----------------------
 
   const debouncedOperatorSave = useDebouncedCallback(
-    (id: string, patch: Partial<TeamOperator>) => {
+    (patch: { name?: string; description?: string }) => {
       void apiCall("/api/team/operator", {
         method: "PATCH",
-        body: JSON.stringify({ id, ...patch }),
+        body: JSON.stringify(patch),
       });
     },
     500,
   );
-  const updateOperator = (patch: Partial<TeamOperator>) => {
-    if (!operator) return;
-    setOperator({ ...operator, ...patch });
-    debouncedOperatorSave(operator.id, patch);
+  const updateOperator = (patch: { name?: string; description?: string }) => {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      ...(patch.name !== undefined ? { operator_name: patch.name } : {}),
+      ...(patch.description !== undefined
+        ? { operator_description: patch.description }
+        : {}),
+    });
+    debouncedOperatorSave(patch);
   };
 
   const debouncedCapabilitySave = useDebouncedCallback(
-    (id: string, patch: Partial<TeamCapability>) => {
+    (patch: { lever_title?: string; lever_description?: string }) => {
       void apiCall("/api/team/capability", {
         method: "PATCH",
-        body: JSON.stringify({ id, ...patch }),
+        body: JSON.stringify(patch),
       });
     },
     500,
   );
-  const updateCapability = (patch: Partial<TeamCapability>) => {
-    if (!capability) return;
-    setCapability({ ...capability, ...patch });
-    debouncedCapabilitySave(capability.id, patch);
+  const updateCapability = (patch: {
+    lever_title?: string;
+    lever_description?: string;
+  }) => {
+    if (!settings) return;
+    setSettings({ ...settings, ...patch });
+    debouncedCapabilitySave(patch);
   };
 
   const debouncedCultureSave = useDebouncedCallback(
-    (id: string, patch: Partial<Pick<TeamCulture, "is_list" | "is_not_list">>) => {
+    (patch: { what_it_is?: string[]; what_it_is_not?: string[] }) => {
       void apiCall("/api/team/culture", {
         method: "PATCH",
-        body: JSON.stringify({ id, ...patch }),
+        body: JSON.stringify(patch),
       });
     },
     500,
   );
-  const updateCulture = (patch: Partial<Pick<TeamCulture, "is_list" | "is_not_list">>) => {
-    if (!culture) return;
-    setCulture({ ...culture, ...patch });
-    debouncedCultureSave(culture.id, patch);
+  const updateCulture = (patch: {
+    what_it_is?: string[];
+    what_it_is_not?: string[];
+  }) => {
+    if (!settings) return;
+    setSettings({ ...settings, ...patch });
+    debouncedCultureSave(patch);
   };
 
   // ---- Warn before nav while saving ------------------------------------
@@ -322,28 +329,29 @@ export default function TeamArchitecture({ initial, userEmail, mode }: Props) {
             onUpdate={updateFoundation}
           />
 
-          {operator && (
-            <OperatorBlock
-              operator={operator}
-              readOnly={readOnly}
-              onUpdate={updateOperator}
-            />
-          )}
+          {settings && (
+            <>
+              <OperatorBlock
+                name={settings.operator_name}
+                description={settings.operator_description}
+                readOnly={readOnly}
+                onUpdate={updateOperator}
+              />
 
-          {capability && (
-            <CapabilityCallout
-              capability={capability}
-              readOnly={readOnly}
-              onUpdate={updateCapability}
-            />
-          )}
+              <CapabilityCallout
+                title={settings.lever_title}
+                description={settings.lever_description}
+                readOnly={readOnly}
+                onUpdate={updateCapability}
+              />
 
-          {culture && (
-            <CultureColumns
-              culture={culture}
-              readOnly={readOnly}
-              onUpdate={updateCulture}
-            />
+              <CultureColumns
+                isList={settings.what_it_is}
+                isNotList={settings.what_it_is_not}
+                readOnly={readOnly}
+                onUpdate={updateCulture}
+              />
+            </>
           )}
         </div>
       </div>

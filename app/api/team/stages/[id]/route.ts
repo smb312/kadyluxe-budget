@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
-const ALLOWED = ["name", "sub_label", "kpi"] as const;
+const ALLOWED = ["name", "kpi"] as const;
 
 export async function PATCH(
   request: NextRequest,

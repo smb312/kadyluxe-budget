@@ -24,12 +24,6 @@ export default function JourneyStages({ stages, readOnly, onUpdate }: Props) {
                 disabled={readOnly}
                 className="ghost-input text-center display-font font-medium text-[15px] leading-tight"
               />
-              <input
-                value={s.sub_label}
-                onChange={(e) => onUpdate(s.id, { sub_label: e.target.value })}
-                disabled={readOnly}
-                className="ghost-input text-center text-[12px] text-black/55 mt-0.5"
-              />
             </div>
             {i < stages.length - 1 && (
               <div
