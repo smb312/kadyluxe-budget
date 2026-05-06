@@ -14,6 +14,7 @@ export default function TopNav({ email, saving }: Props) {
   const tabs = [
     { href: "/budget", label: "Budget" },
     { href: "/team", label: "Team" },
+    { href: "/cashflow", label: "Cash Flow" },
   ];
 
   return (
