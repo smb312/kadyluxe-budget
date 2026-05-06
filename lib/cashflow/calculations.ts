@@ -1,8 +1,9 @@
 import type { Month, Partner } from "@/lib/types";
 import { calculateAnnualCost } from "@/lib/calculations";
-import { MONTHS } from "@/lib/constants";
 import {
+  ALL_CASHFLOW_MONTHS,
   CASHFLOW_MONTHS,
+  JAN_APR_MONTHS,
   type CashflowAssumptions,
   type CashflowKpis,
   type CashflowMonth,
@@ -32,8 +33,8 @@ export const monthlyFixedRetainer = (partners: Partner[]): number =>
 export const monthlyInfluencerSpend = (partners: Partner[]): number =>
   annualInfluencerSpend(partners) / 12;
 
-// Lag helpers. CASHFLOW_MONTHS only spans May–Dec; spend in months before May
-// is not modeled, so revenue in those lag positions is $0.
+// Lag helpers. Spend in months before May is not modeled, so lag-driven
+// revenue in those positions is $0.
 const monthShifted = (m: CashflowMonth, n: number): CashflowMonth | null => {
   const idx = CASHFLOW_MONTHS.indexOf(m);
   return idx >= n ? CASHFLOW_MONTHS[idx - n] : null;
@@ -68,10 +69,7 @@ export const influencerRevenue = (
   return monthlyInf * a.influencer_roas;
 };
 
-// Email is a % of GROSS, where Gross includes email. Solve algebraically:
-//   sub = baseline + paid + influencer
-//   gross = sub / (1 - email_pct)
-//   email = gross - sub
+// Email is a % of GROSS, where Gross includes email. Solve algebraically.
 export const grossAndEmail = (
   baseline: number,
   paid: number,
@@ -84,6 +82,66 @@ export const grossAndEmail = (
   return { gross, email: gross - sub };
 };
 
+// Build a single Jan–Apr row from manual user input. Net cash = gross × margin
+// stays consistent with the May–Dec model; outflows total comes through as-is.
+const manualRow = (
+  month: (typeof JAN_APR_MONTHS)[number],
+  a: CashflowAssumptions,
+): Omit<MonthlyRow, "cumulativeNet"> => {
+  const data = a.manual_jan_apr[month] ?? { outflows: 0, gross: 0 };
+  const outflows = Number.isFinite(data.outflows) ? data.outflows : 0;
+  const gross = Number.isFinite(data.gross) ? data.gross : 0;
+  const netCash = gross * a.contribution_margin;
+  return {
+    month,
+    manual: true,
+    out: {
+      fixedRetainer: 0,
+      variableWorking: 0,
+      scottFee: 0,
+      broncos: 0,
+      total: outflows,
+    },
+    in: { baseline: 0, paid: 0, email: 0, influencer: 0, gross, netCash },
+    monthlyNet: netCash - outflows,
+  };
+};
+
+const modeledRow = (
+  month: CashflowMonth,
+  partners: Partner[],
+  variable: Record<Month, number>,
+  a: CashflowAssumptions,
+  fixedMonthly: number,
+  infMonthly: number,
+): Omit<MonthlyRow, "cumulativeNet"> => {
+  const variableWorking = variable[month] ?? 0;
+  const broncos = a.broncos_included ? a.broncos_amount / 12 : 0;
+  const outTotal =
+    fixedMonthly + variableWorking + a.scott_fee_monthly + broncos;
+
+  const baseline = baselineRevenue(month, a);
+  const paid = paidRevenue(month, variable, a);
+  const influencer = influencerRevenue(month, infMonthly, a);
+  const emailPct = a.email_pct_by_month[month] ?? 0;
+  const { gross, email } = grossAndEmail(baseline, paid, influencer, emailPct);
+  const netCash = gross * a.contribution_margin;
+
+  return {
+    month,
+    manual: false,
+    out: {
+      fixedRetainer: fixedMonthly,
+      variableWorking,
+      scottFee: a.scott_fee_monthly,
+      broncos,
+      total: outTotal,
+    },
+    in: { baseline, paid, email, influencer, gross, netCash },
+    monthlyNet: netCash - outTotal,
+  };
+};
+
 export const computeCashflow = (
   partners: Partner[],
   variable: Record<Month, number>,
@@ -92,75 +150,60 @@ export const computeCashflow = (
   const fixedMonthly = monthlyFixedRetainer(partners);
   const infMonthly = monthlyInfluencerSpend(partners);
 
+  const partial: Omit<MonthlyRow, "cumulativeNet">[] = ALL_CASHFLOW_MONTHS.map(
+    (m) => {
+      if ((JAN_APR_MONTHS as readonly string[]).includes(m)) {
+        return manualRow(m as (typeof JAN_APR_MONTHS)[number], a);
+      }
+      return modeledRow(
+        m as CashflowMonth,
+        partners,
+        variable,
+        a,
+        fixedMonthly,
+        infMonthly,
+      );
+    },
+  );
+
   let cumulative = 0;
-  return CASHFLOW_MONTHS.map<MonthlyRow>((m) => {
-    const variableWorking = variable[m] ?? 0;
-    const broncos = a.broncos_included ? a.broncos_amount / 12 : 0;
-    const outTotal =
-      fixedMonthly + variableWorking + a.scott_fee_monthly + broncos;
-
-    const baseline = baselineRevenue(m, a);
-    const paid = paidRevenue(m, variable, a);
-    const influencer = influencerRevenue(m, infMonthly, a);
-    const emailPct = a.email_pct_by_month[m] ?? 0;
-    const { gross, email } = grossAndEmail(baseline, paid, influencer, emailPct);
-    const netCash = gross * a.contribution_margin;
-    const monthlyNet = netCash - outTotal;
-    cumulative += monthlyNet;
-
-    return {
-      month: m,
-      out: {
-        fixedRetainer: fixedMonthly,
-        variableWorking,
-        scottFee: a.scott_fee_monthly,
-        broncos,
-        total: outTotal,
-      },
-      in: { baseline, paid, email, influencer, gross, netCash },
-      monthlyNet,
-      cumulativeNet: cumulative,
-    };
+  return partial.map((row) => {
+    cumulative += row.monthlyNet;
+    return { ...row, cumulativeNet: cumulative };
   });
 };
 
-// KPIs.
-//   Annual marketing investment uses full-year (12-month) data — partner
-//   retainers are constant year-round, variable working spend sums all 12
-//   months from the budget bundle, Scott's fee × 12, plus Broncos if included.
-//
-//   Revenue / ROAS / CAC use the in-window (May–Dec) projection only — that's
-//   the only window we model. Blended ROAS uses paid working spend as the
-//   denominator (ex-fees) per spec.
+// KPIs reflect the full 12-month picture. Annual marketing investment sums
+// manual Jan–Apr outflows + modeled May–Dec outflows. Annual gross revenue
+// likewise. Blended ROAS uses paid working spend over the May–Dec window
+// only (the only window where we have paid spend data per spec G).
 export const computeKpis = (
   rows: MonthlyRow[],
-  partners: Partner[],
-  variable: Record<Month, number>,
   a: CashflowAssumptions,
 ): CashflowKpis => {
-  const fixedAnnual = annualFixedRetainer(partners);
-  const variableAnnual = MONTHS.reduce((s, m) => s + (variable[m] ?? 0), 0);
-  const annualMarketingInvestment =
-    fixedAnnual +
-    variableAnnual +
-    a.scott_fee_monthly * 12 +
-    (a.broncos_included ? a.broncos_amount : 0);
+  const annualMarketingInvestment = rows.reduce(
+    (s, r) => s + r.out.total,
+    0,
+  );
+  const annualGrossRevenue = rows.reduce((s, r) => s + r.in.gross, 0);
 
-  const windowGrossRevenue = rows.reduce((s, r) => s + r.in.gross, 0);
   const variableSpendInWindow = rows.reduce(
     (s, r) => s + r.out.variableWorking,
     0,
   );
+  const grossInWindow = rows
+    .filter((r) => !r.manual)
+    .reduce((s, r) => s + r.in.gross, 0);
 
   const blendedRoas =
-    variableSpendInWindow > 0 ? windowGrossRevenue / variableSpendInWindow : 0;
+    variableSpendInWindow > 0 ? grossInWindow / variableSpendInWindow : 0;
 
-  const customers = a.aov > 0 ? windowGrossRevenue / a.aov : 0;
+  const customers = a.aov > 0 ? annualGrossRevenue / a.aov : 0;
   const blendedCac = customers > 0 ? variableSpendInWindow / customers : 0;
 
   return {
     annualMarketingInvestment,
-    windowGrossRevenue,
+    annualGrossRevenue,
     blendedRoas,
     blendedCac,
     customers,

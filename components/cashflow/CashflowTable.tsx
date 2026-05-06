@@ -1,11 +1,15 @@
 "use client";
 
 import type { CashflowAssumptions, MonthlyRow } from "@/lib/cashflow/types";
-import { CASHFLOW_MONTHS } from "@/lib/cashflow/types";
+import {
+  ALL_CASHFLOW_MONTHS,
+  JAN_APR_MONTHS,
+} from "@/lib/cashflow/types";
 
 interface Props {
   rows: MonthlyRow[];
   assumptions: CashflowAssumptions;
+  onManualEdit: (month: string, field: "outflows" | "gross", value: number) => void;
 }
 
 const fmt = (n: number): string => {
@@ -14,6 +18,29 @@ const fmt = (n: number): string => {
   const abs = Math.abs(n);
   return `${sign}$${Math.round(abs).toLocaleString()}`;
 };
+
+const isManualMonth = (m: string): boolean =>
+  (JAN_APR_MONTHS as readonly string[]).includes(m);
+
+interface ManualCellProps {
+  value: number;
+  onChange: (n: number) => void;
+}
+
+function ManualCell({ value, onChange }: ManualCellProps) {
+  return (
+    <input
+      type="number"
+      step={1000}
+      value={Number.isFinite(value) ? value : 0}
+      onChange={(e) => {
+        const n = Number(e.target.value);
+        if (Number.isFinite(n)) onChange(n);
+      }}
+      className="w-full mono-font text-[11.5px] tabular-nums text-right bg-transparent border-0 border-b border-dashed border-black/20 focus:border-ink focus:outline-none focus:bg-white/60 px-1 py-0.5"
+    />
+  );
+}
 
 interface DataRowProps {
   label: string;
@@ -24,6 +51,10 @@ interface DataRowProps {
   highlight?: "outflow" | "inflow" | "net" | null;
   cumulative?: boolean;
   rowIndex: number;
+  // Optional editable behavior for Jan–Apr only.
+  editable?: "outflows" | "gross";
+  onManualEdit?: Props["onManualEdit"];
+  manualValues?: Record<string, { outflows: number; gross: number }>;
 }
 
 function DataRow({
@@ -35,6 +66,9 @@ function DataRow({
   highlight,
   cumulative,
   rowIndex,
+  editable,
+  onManualEdit,
+  manualValues,
 }: DataRowProps) {
   const sum = total ?? values.reduce((s, v) => s + v, 0);
   const labelColor =
@@ -42,9 +76,7 @@ function DataRow({
       ? "text-clay"
       : highlight === "inflow"
         ? "text-teal-text"
-        : highlight === "net"
-          ? "text-ink"
-          : "text-ink";
+        : "text-ink";
   const zebra = rowIndex % 2 === 1 ? "bg-black/[0.025]" : "bg-transparent";
   const fontWeight = bold ? "font-semibold" : italic ? "italic font-normal" : "font-normal";
 
@@ -55,16 +87,35 @@ function DataRow({
       >
         {label}
       </td>
-      {values.map((v, i) => {
+      {ALL_CASHFLOW_MONTHS.map((m, i) => {
+        const v = values[i];
+        const isManual = isManualMonth(m);
         const isNeg = cumulative && v < 0;
+
+        if (isManual && editable && onManualEdit && manualValues) {
+          return (
+            <td
+              key={m}
+              className={`px-1 py-1 ${bold ? "font-semibold" : ""} bg-amber-bg/30`}
+            >
+              <ManualCell
+                value={manualValues[m]?.[editable] ?? 0}
+                onChange={(n) => onManualEdit(m, editable, n)}
+              />
+            </td>
+          );
+        }
+
         return (
           <td
-            key={i}
+            key={m}
             className={`px-2 py-1.5 mono-font text-[11.5px] text-right tabular-nums ${
               isNeg ? "text-clay" : ""
-            } ${bold ? "font-semibold" : ""}`}
+            } ${bold ? "font-semibold" : ""} ${
+              isManual && !editable ? "text-black/30" : ""
+            }`}
           >
-            {fmt(v)}
+            {isManual && !editable && !cumulative && !bold ? "—" : fmt(v)}
           </td>
         );
       })}
@@ -94,7 +145,7 @@ function SectionHeader({ label, accent }: SectionHeaderProps) {
   return (
     <tr>
       <td
-        colSpan={CASHFLOW_MONTHS.length + 2}
+        colSpan={ALL_CASHFLOW_MONTHS.length + 2}
         className={`mono-font text-[10px] tracking-[0.18em] uppercase pt-4 pb-1.5 px-3 border-b ${color}`}
       >
         {label}
@@ -103,7 +154,11 @@ function SectionHeader({ label, accent }: SectionHeaderProps) {
   );
 }
 
-export default function CashflowTable({ rows, assumptions }: Props) {
+export default function CashflowTable({
+  rows,
+  assumptions,
+  onManualEdit,
+}: Props) {
   const out = (key: keyof MonthlyRow["out"]) => rows.map((r) => r.out[key]);
   const inn = (key: keyof MonthlyRow["in"]) => rows.map((r) => r.in[key]);
   const monthlyNet = rows.map((r) => r.monthlyNet);
@@ -117,14 +172,25 @@ export default function CashflowTable({ rows, assumptions }: Props) {
             <th className="text-left px-3 py-2 mono-font text-[10px] tracking-[0.12em] uppercase text-black/55 font-normal">
               Line item
             </th>
-            {CASHFLOW_MONTHS.map((m) => (
-              <th
-                key={m}
-                className="px-2 py-2 mono-font text-[10px] tracking-[0.12em] uppercase text-black/55 font-normal text-right"
-              >
-                {m}
-              </th>
-            ))}
+            {ALL_CASHFLOW_MONTHS.map((m) => {
+              const manual = isManualMonth(m);
+              return (
+                <th
+                  key={m}
+                  className={`px-2 py-2 mono-font text-[10px] tracking-[0.12em] uppercase font-normal text-right ${
+                    manual ? "text-amber-text bg-amber-bg/40" : "text-black/55"
+                  }`}
+                  title={manual ? "Pre-period (manual entry)" : undefined}
+                >
+                  {m}
+                  {manual && (
+                    <span className="ml-1 text-[8px] tracking-normal lowercase">
+                      manual
+                    </span>
+                  )}
+                </th>
+              );
+            })}
             <th className="px-3 py-2 mono-font text-[10px] tracking-[0.12em] uppercase text-black/55 font-normal text-right border-l border-black/10">
               Annual
             </th>
@@ -164,6 +230,9 @@ export default function CashflowTable({ rows, assumptions }: Props) {
             bold
             highlight="outflow"
             rowIndex={assumptions.broncos_included ? 4 : 3}
+            editable="outflows"
+            onManualEdit={onManualEdit}
+            manualValues={assumptions.manual_jan_apr}
           />
 
           <SectionHeader label="Inflows" accent="inflow" />
@@ -197,6 +266,9 @@ export default function CashflowTable({ rows, assumptions }: Props) {
             bold
             highlight="inflow"
             rowIndex={4}
+            editable="gross"
+            onManualEdit={onManualEdit}
+            manualValues={assumptions.manual_jan_apr}
           />
           <DataRow
             label={`× Contribution margin (${(assumptions.contribution_margin * 100).toFixed(0)}%)`}
@@ -252,6 +324,9 @@ export default function CashflowTable({ rows, assumptions }: Props) {
           </tr>
         </tbody>
       </table>
+      <div className="px-3 py-2 mono-font text-[10px] tracking-[0.12em] uppercase text-black/40 border-t border-black/10 bg-black/[0.02]">
+        Jan–Apr columns are manual entry · only TOTAL OUTFLOWS and GROSS REVENUE are editable
+      </div>
     </div>
   );
 }

@@ -59,6 +59,23 @@ export async function PATCH(request: NextRequest) {
   if ("selected_scenario_slug" in body) {
     patch.selected_scenario_slug = String(body.selected_scenario_slug ?? "");
   }
+  if ("manual_jan_apr" in body) {
+    const raw = body.manual_jan_apr;
+    if (raw && typeof raw === "object") {
+      const sanitized: Record<string, { outflows: number; gross: number }> = {};
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (!v || typeof v !== "object") continue;
+        const cell = v as Record<string, unknown>;
+        const outflows = Number(cell.outflows);
+        const gross = Number(cell.gross);
+        sanitized[k] = {
+          outflows: Number.isFinite(outflows) ? outflows : 0,
+          gross: Number.isFinite(gross) ? gross : 0,
+        };
+      }
+      patch.manual_jan_apr = sanitized;
+    }
+  }
 
   if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true });
   patch.updated_at = new Date().toISOString();

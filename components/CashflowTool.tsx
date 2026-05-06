@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { useDebouncedCallback } from "@/lib/hooks";
 import { computeCashflow, computeKpis } from "@/lib/cashflow/calculations";
-import { CASHFLOW_MONTHS } from "@/lib/cashflow/types";
-import type { CashflowAssumptions } from "@/lib/cashflow/types";
+import { ALL_CASHFLOW_MONTHS } from "@/lib/cashflow/types";
+import type { CashflowAssumptions, ManualJanApr } from "@/lib/cashflow/types";
 import type { Scenario, ScenarioBundle, ScenarioSlug } from "@/lib/types";
 import TopNav from "./TopNav";
 import AssumptionsPanel from "./cashflow/AssumptionsPanel";
@@ -71,6 +71,24 @@ export default function CashflowTool({
     debouncedSave(patch);
   };
 
+  const handleManualEdit = (
+    month: string,
+    field: "outflows" | "gross",
+    value: number,
+  ) => {
+    setAssumptions((prev) => {
+      const nextManual: ManualJanApr = {
+        ...prev.manual_jan_apr,
+        [month]: {
+          ...(prev.manual_jan_apr[month] ?? { outflows: 0, gross: 0 }),
+          [field]: value,
+        },
+      };
+      debouncedSave({ manual_jan_apr: nextManual });
+      return { ...prev, manual_jan_apr: nextManual };
+    });
+  };
+
   // Resolve the active scenario state. Fall back to the first scenario if the
   // saved slug doesn't match anything (e.g. scenario was renamed).
   const activeSlug: ScenarioSlug = useMemo(() => {
@@ -90,14 +108,14 @@ export default function CashflowTool({
     if (!activeState) {
       return {
         annualMarketingInvestment: 0,
-        windowGrossRevenue: 0,
+        annualGrossRevenue: 0,
         blendedRoas: 0,
         blendedCac: 0,
         customers: 0,
         variableSpendInWindow: 0,
       };
     }
-    return computeKpis(rows, activeState.partners, activeState.variable, assumptions);
+    return computeKpis(rows, assumptions);
   }, [activeState, rows, assumptions]);
 
   // Warn before nav while saving.
@@ -116,14 +134,14 @@ export default function CashflowTool({
 
   const exportCsv = () => {
     if (rows.length === 0) return;
-    const header = ["Line item", ...CASHFLOW_MONTHS, "Annual"];
+    const header = ["Line item", ...ALL_CASHFLOW_MONTHS, "Annual"];
     const totalRow = (label: string, values: number[]) => {
       const sum = values.reduce((s, v) => s + v, 0);
       return [label, ...values.map(fmtCsvNumber), fmtCsvNumber(sum)];
     };
     const lines: string[][] = [
       header,
-      ["", ...CASHFLOW_MONTHS.map(() => ""), ""],
+      ["", ...ALL_CASHFLOW_MONTHS.map(() => ""), ""],
       ["OUTFLOWS"],
       totalRow("Fixed partner retainers", rows.map((r) => r.out.fixedRetainer)),
       totalRow("Variable working spend", rows.map((r) => r.out.variableWorking)),
@@ -242,7 +260,11 @@ export default function CashflowTool({
 
         <AssumptionsPanel assumptions={assumptions} onPatch={patchAssumptions} />
 
-        <CashflowTable rows={rows} assumptions={assumptions} />
+        <CashflowTable
+          rows={rows}
+          assumptions={assumptions}
+          onManualEdit={handleManualEdit}
+        />
 
         <KpiCards kpis={kpis} />
 

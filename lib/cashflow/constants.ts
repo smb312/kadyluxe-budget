@@ -1,4 +1,11 @@
-import type { CashflowAssumptions, MonthMap } from "./types";
+import type { CashflowAssumptions, ManualJanApr, MonthMap } from "./types";
+
+export const DEFAULT_MANUAL_JAN_APR: ManualJanApr = {
+  Jan: { outflows: 0, gross: 0 },
+  Feb: { outflows: 0, gross: 0 },
+  Mar: { outflows: 0, gross: 0 },
+  Apr: { outflows: 0, gross: 0 },
+};
 
 export const DEFAULT_SEASONALITY: MonthMap = {
   May: 0.5, Jun: 0.6, Jul: 0.8, Aug: 1.4,
@@ -30,6 +37,7 @@ export const DEFAULT_ASSUMPTIONS: Omit<CashflowAssumptions, "user_id"> = {
   broncos_included: false,
   broncos_amount: 150_000,
   selected_scenario_slug: "option3",
+  manual_jan_apr: DEFAULT_MANUAL_JAN_APR,
 };
 
 export const TOOLTIPS = {
