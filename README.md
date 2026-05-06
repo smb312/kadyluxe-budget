@@ -129,16 +129,18 @@ npm run dev
 | `/auth/sign-out` | POST endpoint that clears the session |
 | `/budget` | 2026 budget tool (auth required) |
 | `/team` | Team architecture / marketing operating system (auth required) |
+| `/cashflow` | Monthly cash flow projection — outflows from a budget scenario + modeled inflows (auth required) |
 | `/view/{token}` | Read-only tabbed view (budget + team) via share link |
 | `/api/partners` / `/api/partners/[id]` | Budget partner CRUD |
 | `/api/monthly` | PATCH — upsert monthly variable cell |
 | `/api/share` | POST create / DELETE revoke share link |
-| `/api/team/stages/[id]` | PATCH stage name / sub-label / KPI |
+| `/api/team/stages/[id]` | PATCH stage name / KPI |
 | `/api/team/partners` / `/api/team/partners/[id]` | Team partner CRUD (max 6 per stage) |
 | `/api/team/foundation/[id]` | PATCH foundation cell |
-| `/api/team/operator` | PATCH operator block |
-| `/api/team/capability` | PATCH capability callout |
-| `/api/team/culture` | PATCH "what this is / is not" lists |
+| `/api/team/operator` | PATCH operator name / description (writes to `team_settings`) |
+| `/api/team/capability` | PATCH lever title / description (writes to `team_settings`) |
+| `/api/team/culture` | PATCH "what this is / is not" lists (writes to `team_settings`) |
+| `/api/cashflow/assumptions` | PATCH cash flow assumptions (per-user row in `cashflow_assumptions`) |
 
 ## Team Architecture page
 
@@ -148,10 +150,58 @@ set via a small swatch picker that appears on cell hover. The 5 stages and
 3 foundation cells are intentionally locked in count — the constraint is
 the feature.
 
-Schema: see `db/team_schema.sql`. Run once in Supabase SQL Editor before
-visiting `/team`. The seed (20 partners, 3 foundation rows, operator,
-capability callout, "what this is / is not" lists) is inserted
-automatically by the server on first load if the tables are empty.
+The team tables (`team_stages`, `team_partners`, `team_foundation`,
+`team_settings`) already exist in the production Supabase project; no
+migration is required. On first load `/team` auto-seeds 5 stages, 20
+partners, 3 foundation rows, and a single `team_settings` row (operator
+name + description, lever title + description, and the "what this is /
+is not" JSONB lists) if those tables are empty.
+
+## Cash flow page
+
+`/cashflow` projects monthly cash needs across May–Dec. Outflows pull from a
+selected budget scenario (fixed retainers spread evenly over 12 months,
+variable working spend per month, Scott's fee, optional Broncos line).
+Inflows are modeled per-month from baseline organic + paid (3-week lag) +
+email (% of gross) + influencer (6-week lag) × contribution margin.
+
+The math:
+
+- `paid_revenue[N] = paid_spend[N−1] × paid_ROAS[N]` — first month is $0 because April spend is not modeled.
+- `influencer_revenue[N] = influencer_spend[N−2] × influencer_ROAS`.
+- `email_revenue[N] = pct[N] × gross[N]`, solved as `gross = (baseline + paid + influencer) / (1 − pct)`.
+- `net_cash_inflow = gross × contribution_margin`.
+- `monthly_net = net_cash_inflow − total_outflows`; cumulative is the running total.
+- Influencer spend is auto-detected from partners whose category contains "Influencer". Broncos is excluded from the fixed retainer sum so the cashflow toggle is the single source of truth.
+
+Run this SQL in Supabase once before visiting `/cashflow`:
+
+```sql
+create table cashflow_assumptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  baseline_dtc_monthly numeric default 40000,
+  seasonality jsonb default '{"May":0.5,"Jun":0.6,"Jul":0.8,"Aug":1.4,"Sep":1.6,"Oct":1.4,"Nov":1.8,"Dec":1.5}'::jsonb,
+  paid_roas_by_month jsonb default '{"May":2.0,"Jun":2.2,"Jul":2.5,"Aug":3.0,"Sep":3.5,"Oct":3.5,"Nov":3.5,"Dec":3.0}'::jsonb,
+  influencer_roas numeric default 2.5,
+  email_pct_by_month jsonb default '{"May":0.05,"Jun":0.07,"Jul":0.10,"Aug":0.12,"Sep":0.15,"Oct":0.18,"Nov":0.20,"Dec":0.20}'::jsonb,
+  aov numeric default 155,
+  site_cvr numeric default 0.013,
+  contribution_margin numeric default 0.35,
+  paid_lag_weeks numeric default 3,
+  influencer_lag_weeks numeric default 6,
+  scott_fee_monthly numeric default 12000,
+  broncos_included boolean default false,
+  broncos_amount numeric default 150000,
+  selected_scenario_slug text default 'option3',
+  updated_at timestamptz default now()
+);
+
+alter table cashflow_assumptions enable row level security;
+create policy "users own cashflow_assumptions" on cashflow_assumptions for all using (auth.uid() = user_id);
+create policy "anon read cashflow_assumptions" on cashflow_assumptions for select using (true);
+```
+
+A row is auto-inserted for the user on first visit if missing.
 
 ## Notes
 

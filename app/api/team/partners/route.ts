@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
     .insert({
       stage_id: stageId,
       name: String(body.name ?? ""),
-      vendor: String(body.vendor ?? ""),
+      partner: String(body.partner ?? ""),
       status,
-      sort_order: count ?? 0,
+      position: count ?? 0,
     })
     .select("*")
     .single();

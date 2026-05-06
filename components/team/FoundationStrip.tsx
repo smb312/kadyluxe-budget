@@ -21,7 +21,7 @@ const stylesFor = (status: TeamStatus) => {
 };
 
 export default function FoundationStrip({ rows, readOnly, onUpdate }: Props) {
-  const sorted = [...rows].sort((a, b) => a.sort_order - b.sort_order);
+  const sorted = [...rows].sort((a, b) => a.position - b.position);
 
   return (
     <div>
@@ -47,8 +47,8 @@ export default function FoundationStrip({ rows, readOnly, onUpdate }: Props) {
               className="ghost-input text-center font-medium text-[14px]"
             />
             <input
-              value={row.vendor}
-              onChange={(e) => onUpdate(row.id, { vendor: e.target.value })}
+              value={row.partner}
+              onChange={(e) => onUpdate(row.id, { partner: e.target.value })}
               disabled={readOnly}
               className="ghost-input text-center text-[12px] mt-1 opacity-80"
             />

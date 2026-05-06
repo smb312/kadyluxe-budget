@@ -1,20 +1,14 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import {
-  SEED_CAPABILITY,
-  SEED_CULTURE,
   SEED_FOUNDATION,
-  SEED_OPERATOR,
   SEED_PARTNERS,
   SEED_STAGES,
 } from "./constants";
 import type {
-  StageSlug,
-  TeamCapability,
-  TeamCulture,
   TeamData,
   TeamFoundation,
-  TeamOperator,
   TeamPartner,
+  TeamSettings,
   TeamStage,
   TeamStatus,
 } from "./types";
@@ -22,41 +16,30 @@ import type {
 const isStatus = (s: unknown): s is TeamStatus =>
   s === "confirmed" || s === "recommended" || s === "vision";
 
-const isStageSlug = (s: unknown): s is StageSlug =>
-  s === "awareness" ||
-  s === "consideration" ||
-  s === "conversion" ||
-  s === "retention" ||
-  s === "advocacy";
-
-const seedIfEmpty = async () => {
+const seedIfEmpty = async (userId: string) => {
   const admin = createServiceClient();
 
   const { data: existingStages } = await admin
     .from("team_stages")
-    .select("id, slug");
+    .select("id, position");
 
-  let stagesBySlug: Map<StageSlug, string>;
+  let positionToId: Map<number, string>;
 
   if (!existingStages || existingStages.length === 0) {
     const { data: inserted, error } = await admin
       .from("team_stages")
       .insert(SEED_STAGES)
-      .select("id, slug");
+      .select("id, position");
     if (error) {
       console.error("seed team_stages error", error);
       return;
     }
-    stagesBySlug = new Map(
-      (inserted ?? [])
-        .filter((r) => isStageSlug(r.slug))
-        .map((r) => [r.slug as StageSlug, String(r.id)]),
+    positionToId = new Map(
+      (inserted ?? []).map((r) => [Number(r.position), String(r.id)]),
     );
   } else {
-    stagesBySlug = new Map(
-      existingStages
-        .filter((r) => isStageSlug(r.slug))
-        .map((r) => [r.slug as StageSlug, String(r.id)]),
+    positionToId = new Map(
+      existingStages.map((r) => [Number(r.position), String(r.id)]),
     );
   }
 
@@ -65,11 +48,11 @@ const seedIfEmpty = async () => {
     .select("id", { count: "exact", head: true });
   if ((partnerCount ?? 0) === 0) {
     const rows = SEED_PARTNERS.map((p) => ({
-      stage_id: stagesBySlug.get(p.stage_slug),
+      stage_id: positionToId.get(p.stage_position),
       name: p.name,
-      vendor: p.vendor,
+      partner: p.partner,
       status: p.status,
-      sort_order: p.sort_order,
+      position: p.position,
     })).filter((r) => r.stage_id);
     if (rows.length > 0) {
       const { error } = await admin.from("team_partners").insert(rows);
@@ -85,115 +68,78 @@ const seedIfEmpty = async () => {
     if (error) console.error("seed team_foundation error", error);
   }
 
-  const { count: operatorCount } = await admin
-    .from("team_operator")
-    .select("id", { count: "exact", head: true });
-  if ((operatorCount ?? 0) === 0) {
-    const { error } = await admin.from("team_operator").insert(SEED_OPERATOR);
-    if (error) console.error("seed team_operator error", error);
-  }
-
-  const { count: capCount } = await admin
-    .from("team_capability")
-    .select("id", { count: "exact", head: true });
-  if ((capCount ?? 0) === 0) {
-    const { error } = await admin.from("team_capability").insert(SEED_CAPABILITY);
-    if (error) console.error("seed team_capability error", error);
-  }
-
-  const { count: cultureCount } = await admin
-    .from("team_culture")
-    .select("id", { count: "exact", head: true });
-  if ((cultureCount ?? 0) === 0) {
-    const { error } = await admin.from("team_culture").insert(SEED_CULTURE);
-    if (error) console.error("seed team_culture error", error);
+  const { data: existingSettings } = await admin
+    .from("team_settings")
+    .select("user_id")
+    .limit(1)
+    .maybeSingle();
+  if (!existingSettings) {
+    // Column defaults populate the textual fields; we only need user_id.
+    const { error } = await admin
+      .from("team_settings")
+      .insert({ user_id: userId });
+    if (error) console.error("seed team_settings error", error);
   }
 };
 
-export const loadTeam = async (): Promise<TeamData> => {
-  await seedIfEmpty();
+export const loadTeam = async (
+  userId: string | null,
+  options: { seed?: boolean } = {},
+): Promise<TeamData> => {
+  const seed = options.seed ?? Boolean(userId);
+  if (seed && userId) {
+    await seedIfEmpty(userId);
+  }
 
   const admin = createServiceClient();
   const [
     { data: stages },
     { data: partners },
     { data: foundation },
-    { data: operator },
-    { data: capability },
-    { data: culture },
+    { data: settings },
   ] = await Promise.all([
-    admin.from("team_stages").select("*").order("sort_order", { ascending: true }),
-    admin.from("team_partners").select("*").order("sort_order", { ascending: true }),
-    admin.from("team_foundation").select("*").order("sort_order", { ascending: true }),
-    admin.from("team_operator").select("*").limit(1).maybeSingle(),
-    admin.from("team_capability").select("*").limit(1).maybeSingle(),
-    admin.from("team_culture").select("*").limit(1).maybeSingle(),
+    admin.from("team_stages").select("*").order("position", { ascending: true }),
+    admin.from("team_partners").select("*").order("position", { ascending: true }),
+    admin.from("team_foundation").select("*").order("position", { ascending: true }),
+    admin.from("team_settings").select("*").limit(1).maybeSingle(),
   ]);
 
-  const stageRows: TeamStage[] = (stages ?? [])
-    .filter((r) => isStageSlug(r.slug))
-    .map((r) => ({
-      id: String(r.id),
-      slug: r.slug as StageSlug,
-      name: String(r.name ?? ""),
-      sub_label: String(r.sub_label ?? ""),
-      kpi: String(r.kpi ?? ""),
-      sort_order: Number(r.sort_order ?? 0),
-    }));
+  const stageRows: TeamStage[] = (stages ?? []).map((r) => ({
+    id: String(r.id),
+    name: String(r.name ?? ""),
+    kpi: String(r.kpi ?? ""),
+    position: Number(r.position ?? 0),
+  }));
 
-  const idToSlug = new Map(stageRows.map((s) => [s.id, s.slug]));
-
-  const partnerRows: TeamPartner[] = (partners ?? [])
-    .map((r) => {
-      const slug = idToSlug.get(String(r.stage_id));
-      if (!slug) return null;
-      const status = isStatus(r.status) ? r.status : "recommended";
-      return {
-        id: String(r.id),
-        stage_id: String(r.stage_id),
-        stage_slug: slug,
-        name: String(r.name ?? ""),
-        vendor: String(r.vendor ?? ""),
-        status,
-        sort_order: Number(r.sort_order ?? 0),
-      } satisfies TeamPartner;
-    })
-    .filter((p): p is TeamPartner => p !== null);
+  const partnerRows: TeamPartner[] = (partners ?? []).map((r) => ({
+    id: String(r.id),
+    stage_id: String(r.stage_id ?? ""),
+    name: String(r.name ?? ""),
+    partner: String(r.partner ?? ""),
+    status: isStatus(r.status) ? r.status : "recommended",
+    position: Number(r.position ?? 0),
+  }));
 
   const foundationRows: TeamFoundation[] = (foundation ?? []).map((r) => ({
     id: String(r.id),
     name: String(r.name ?? ""),
-    vendor: String(r.vendor ?? ""),
+    partner: String(r.partner ?? ""),
     status: isStatus(r.status) ? r.status : "recommended",
-    sort_order: Number(r.sort_order ?? 0),
+    position: Number(r.position ?? 0),
   }));
 
-  const operatorRow: TeamOperator | null = operator
+  const settingsRow: TeamSettings | null = settings
     ? {
-        id: String(operator.id),
-        name: String(operator.name ?? ""),
-        tagline: String(operator.tagline ?? ""),
-        body: String(operator.body ?? ""),
-      }
-    : null;
-
-  const capabilityRow: TeamCapability | null = capability
-    ? {
-        id: String(capability.id),
-        section_title: String(capability.section_title ?? ""),
-        callout_title: String(capability.callout_title ?? ""),
-        callout_body: String(capability.callout_body ?? ""),
-      }
-    : null;
-
-  const cultureRow: TeamCulture | null = culture
-    ? {
-        id: String(culture.id),
-        is_list: Array.isArray(culture.is_list)
-          ? (culture.is_list as unknown[]).map((x) => String(x))
+        user_id: String(settings.user_id),
+        operator_name: String(settings.operator_name ?? ""),
+        operator_description: String(settings.operator_description ?? ""),
+        lever_title: String(settings.lever_title ?? ""),
+        lever_description: String(settings.lever_description ?? ""),
+        what_it_is: Array.isArray(settings.what_it_is)
+          ? (settings.what_it_is as unknown[]).map((x) => String(x))
           : [],
-        is_not_list: Array.isArray(culture.is_not_list)
-          ? (culture.is_not_list as unknown[]).map((x) => String(x))
+        what_it_is_not: Array.isArray(settings.what_it_is_not)
+          ? (settings.what_it_is_not as unknown[]).map((x) => String(x))
           : [],
       }
     : null;
@@ -202,8 +148,6 @@ export const loadTeam = async (): Promise<TeamData> => {
     stages: stageRows,
     partners: partnerRows,
     foundation: foundationRows,
-    operator: operatorRow,
-    capability: capabilityRow,
-    culture: cultureRow,
+    settings: settingsRow,
   };
 };

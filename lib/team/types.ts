@@ -1,66 +1,44 @@
 export type TeamStatus = "confirmed" | "recommended" | "vision";
 
-export type StageSlug =
-  | "awareness"
-  | "consideration"
-  | "conversion"
-  | "retention"
-  | "advocacy";
-
 export interface TeamStage {
   id: string;
-  slug: StageSlug;
   name: string;
-  sub_label: string;
   kpi: string;
-  sort_order: number;
+  position: number;
 }
 
 export interface TeamPartner {
   id: string;
   stage_id: string;
-  stage_slug: StageSlug;
   name: string;
-  vendor: string;
+  partner: string;
   status: TeamStatus;
-  sort_order: number;
+  position: number;
 }
 
 export interface TeamFoundation {
   id: string;
   name: string;
-  vendor: string;
+  partner: string;
   status: TeamStatus;
-  sort_order: number;
+  position: number;
 }
 
-export interface TeamOperator {
-  id: string;
-  name: string;
-  tagline: string;
-  body: string;
-}
-
-export interface TeamCapability {
-  id: string;
-  section_title: string;
-  callout_title: string;
-  callout_body: string;
-}
-
-export interface TeamCulture {
-  id: string;
-  is_list: string[];
-  is_not_list: string[];
+export interface TeamSettings {
+  user_id: string;
+  operator_name: string;
+  operator_description: string;
+  lever_title: string;
+  lever_description: string;
+  what_it_is: string[];
+  what_it_is_not: string[];
 }
 
 export interface TeamData {
   stages: TeamStage[];
   partners: TeamPartner[];
   foundation: TeamFoundation[];
-  operator: TeamOperator | null;
-  capability: TeamCapability | null;
-  culture: TeamCulture | null;
+  settings: TeamSettings | null;
 }
 
 export const MAX_PARTNERS_PER_STAGE = 6;

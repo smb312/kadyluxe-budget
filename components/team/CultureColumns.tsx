@@ -1,12 +1,12 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
-import type { TeamCulture } from "@/lib/team/types";
 
 interface Props {
-  culture: TeamCulture;
+  isList: string[];
+  isNotList: string[];
   readOnly: boolean;
-  onUpdate: (patch: Partial<Pick<TeamCulture, "is_list" | "is_not_list">>) => void;
+  onUpdate: (patch: { what_it_is?: string[]; what_it_is_not?: string[] }) => void;
 }
 
 interface ColumnProps {
@@ -78,7 +78,12 @@ function Column({ title, items, readOnly, bg, onChange }: ColumnProps) {
   );
 }
 
-export default function CultureColumns({ culture, readOnly, onUpdate }: Props) {
+export default function CultureColumns({
+  isList,
+  isNotList,
+  readOnly,
+  onUpdate,
+}: Props) {
   return (
     <div>
       <div className="label-mono mb-3 !text-[10px]">
@@ -87,17 +92,17 @@ export default function CultureColumns({ culture, readOnly, onUpdate }: Props) {
       <div className="grid gap-4 md:grid-cols-2">
         <Column
           title="What this is"
-          items={culture.is_list}
+          items={isList}
           readOnly={readOnly}
           bg="bg-black/[0.03]"
-          onChange={(next) => onUpdate({ is_list: next })}
+          onChange={(next) => onUpdate({ what_it_is: next })}
         />
         <Column
           title="What it's not"
-          items={culture.is_not_list}
+          items={isNotList}
           readOnly={readOnly}
           bg="bg-white"
-          onChange={(next) => onUpdate({ is_not_list: next })}
+          onChange={(next) => onUpdate({ what_it_is_not: next })}
         />
       </div>
     </div>
